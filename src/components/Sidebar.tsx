@@ -3,6 +3,7 @@ import {
   Edit2,
   HelpCircle,
   Keyboard,
+  LayoutDashboard,
   LogOut,
   Moon,
   PanelLeftClose,
@@ -96,6 +97,14 @@ export function Sidebar({
       </div>
 
       <nav className="sidebar-nav" aria-label="Task navigation">
+        <button
+          type="button"
+          className={`nav-pill boards-nav-pill ${selectedListId === "all" ? "active" : ""}`}
+          onClick={() => onSelectList("all")}
+        >
+          <LayoutDashboard size={16} />
+          <span>All Boards</span>
+        </button>
         <button
           type="button"
           className={`nav-pill star-nav-pill ${selectedListId === "starred" ? "active" : ""}`}

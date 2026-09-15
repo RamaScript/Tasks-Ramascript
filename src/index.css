@@ -1,22 +1,38 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&family=Plus+Jakarta+Sans:wght@700;800;900&display=swap');
+
 :root {
-  --bg: #eae5d9;
-  --panel: #f7f3ea;
-  --ink: #111111;
-  --line: #111111;
-  --line-strong: #111111;
-  --muted: #5e594b;
-  --accent: #e5ff2e;
-  --success: #0b7e43;
-  --select: #111111;
-  --select-ink: #f7f3ea;
-  --warn: #ffdb4d;
-  --danger: #fed7d7;
-  --overdue: #d82b1f;
-  --badge-bg: #e2dcce;
-  --font-display: "Archivo", "Arial Black", sans-serif;
-  --font-mono: "Space Mono", "Courier New", monospace;
-  font-family: var(--font-mono), "Inter Tight", "Segoe UI", sans-serif;
-  line-height: 1.4;
+  --bg: #f4f5f7;
+  --panel: #ffffff;
+  --panel-hover: #f8fafc;
+  --ink: #0f172a;
+  --line: #0f172a;
+  --line-strong: #0f172a;
+  --muted: #64748b;
+  --accent: #ffe600;
+  --accent-blue: #3b82f6;
+  --accent-cyan: #06b6d4;
+  --accent-lime: #10b981;
+  --accent-coral: #f43f5e;
+  --accent-purple: #8b5cf6;
+  --success: #10b981;
+  --warn: #f59e0b;
+  --danger: #fee2e2;
+  --overdue: #ef4444;
+  --badge-bg: #e2e8f0;
+  --select: #0f172a;
+  --select-ink: #ffffff;
+
+  --shadow-sm: 2px 2px 0px var(--line);
+  --shadow: 3.5px 3.5px 0px var(--line);
+  --shadow-lg: 5px 5px 0px var(--line);
+  --shadow-xl: 8px 8px 0px var(--line);
+
+  --font-display: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Space Mono', monospace;
+
+  font-family: var(--font-sans);
+  line-height: 1.45;
   font-weight: 400;
   color: var(--ink);
   background: var(--bg);
@@ -27,20 +43,31 @@
 }
 
 :root body[data-theme="dark"] {
-  --bg: #0d0e11;
-  --panel: #14171d;
-  --ink: #f0ede6;
-  --line: #2e3543;
-  --line-strong: #454f63;
-  --muted: #8b94a5;
-  --accent: #e5ff2e;
+  --bg: #0b0d11;
+  --panel: #131720;
+  --panel-hover: #1b202c;
+  --ink: #f1f5f9;
+  --line: #2b3345;
+  --line-strong: #404b63;
+  --muted: #94a3b8;
+  --accent: #ffe600;
+  --accent-blue: #60a5fa;
+  --accent-cyan: #22d3ee;
+  --accent-lime: #34d399;
+  --accent-coral: #fb7185;
+  --accent-purple: #a78bfa;
   --success: #34d399;
-  --select: #e5ff2e;
-  --select-ink: #0d0e11;
   --warn: #fbbf24;
-  --danger: #7f1d1d;
-  --overdue: #ff5a52;
-  --badge-bg: #1c212b;
+  --danger: #450a0a;
+  --overdue: #f87171;
+  --badge-bg: #1e293b;
+  --select: #ffe600;
+  --select-ink: #0f172a;
+
+  --shadow-sm: 2px 2px 0px #000000;
+  --shadow: 3.5px 3.5px 0px #000000;
+  --shadow-lg: 5px 5px 0px #000000;
+  --shadow-xl: 8px 8px 0px #000000;
 }
 
 * {
@@ -57,21 +84,9 @@ body {
   min-height: 100vh;
   background: var(--bg);
   color: var(--ink);
-  font-family: var(--font-mono), "Segoe UI", sans-serif;
-  transition:
-    background-color 0.2s ease,
-    color 0.2s ease;
-  position: relative;
-}
-
-body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 99998;
-  pointer-events: none;
-  opacity: 0.055;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 220 220' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  font-family: var(--font-sans);
+  transition: background-color 0.15s ease, color 0.15s ease;
+  overflow-x: hidden;
 }
 
 button,
@@ -79,12 +94,6 @@ input,
 textarea,
 select {
   font: inherit;
-}
-
-button,
-input,
-textarea,
-select {
   outline: none;
 }
 
@@ -92,8 +101,8 @@ button:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible {
-  outline: 3px solid var(--accent);
-  outline-offset: 0;
+  outline: 2.5px solid var(--accent);
+  outline-offset: 1px;
 }
 
 img {
@@ -101,23 +110,21 @@ img {
   display: block;
 }
 
-#root {
-  min-height: 100vh;
+/* Custom crisp brutalist scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
 
-h1,
-h2,
-h3,
-p {
-  margin-top: 0;
+::-webkit-scrollbar-track {
+  background: var(--bg);
+  border: 1px solid var(--line);
 }
 
-::selection {
-  background: var(--ink);
-  color: var(--bg);
+::-webkit-scrollbar-thumb {
+  background: var(--line);
 }
 
-body[data-theme="dark"] ::selection {
+::-webkit-scrollbar-thumb:hover {
   background: var(--accent);
-  color: var(--ink);
 }

@@ -1903,3 +1903,312 @@
     padding: 0.6rem 1rem 0;
   }
 }
+/* ==========================================================================
+   BOARD VIEW — Multi-column layout (tasks.google.com style)
+   ========================================================================== */
+
+/* Main panel in board mode: no padding so columns fill edge-to-edge */
+.main-panel.board-mode {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Board area wrapper: fills remaining height */
+.board-area {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Board area header — title row above the columns track */
+.board-area-header {
+  padding: 1.25rem 1.5rem 0.75rem;
+  border-bottom: 2px solid var(--line);
+  background: var(--panel);
+  flex-shrink: 0;
+}
+
+.board-area-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.board-area-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 1.5rem;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.board-list-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: var(--bg);
+  border: 2px solid var(--line);
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+
+.sidebar-toggle-btn {
+  background: none;
+  border: 2px solid var(--line);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 0.3rem 0.5rem;
+  line-height: 1;
+  color: var(--ink);
+  transition: background 0.1s;
+}
+.sidebar-toggle-btn:hover {
+  background: var(--accent);
+}
+
+/* Board loading state */
+.board-loading {
+  margin: 2rem 1.5rem;
+}
+
+/* ── Board scroll container ── */
+.board-view-container {
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* ── Columns track ── */
+.board-columns-track {
+  display: flex;
+  flex-direction: row;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem 1.5rem;
+  align-items: flex-start;
+  min-height: 100%;
+  width: max-content;
+}
+
+/* ── Individual Column ── */
+.board-column {
+  width: 320px;
+  min-width: 320px;
+  max-width: 320px;
+  background: var(--panel);
+  border: 2.5px solid var(--line);
+  box-shadow: 3.5px 3.5px 0px var(--line);
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 170px);
+  flex-shrink: 0;
+}
+
+/* ── Column Header ── */
+.board-column-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 0.85rem 0.65rem;
+  border-bottom: 2px solid var(--line);
+  background: var(--panel);
+  flex-shrink: 0;
+  gap: 0.5rem;
+}
+
+.board-column-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.column-color-indicator {
+  display: block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  flex-shrink: 0;
+}
+
+.board-column-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.875rem;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: none;
+  line-height: 1.2;
+}
+
+.column-count-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 700;
+  background: var(--bg);
+  border: 1.5px solid var(--line);
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  color: var(--muted);
+  line-height: 1;
+}
+
+.column-menu-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--muted);
+  flex-shrink: 0;
+  border-radius: 2px;
+  transition: background 0.1s, color 0.1s;
+}
+.column-menu-btn:hover {
+  background: var(--bg);
+  color: var(--ink);
+}
+
+/* ── Column Body ── */
+.board-column-body {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0.6rem 0.6rem 1rem;
+}
+
+/* Compact task entries within columns */
+.board-column-body .task-row-item {
+  border-left-width: 0;
+  border-right-width: 0;
+  border-radius: 0;
+}
+
+/* Active tasks list within column */
+.column-task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+}
+
+/* Column empty state */
+.column-empty-state {
+  padding: 1.5rem 0.5rem;
+  text-align: center;
+  color: var(--muted);
+}
+.column-empty-state span {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  display: block;
+}
+.column-empty-state p {
+  font-size: 0.8rem;
+  margin: 0.35rem 0 0;
+  color: var(--muted);
+}
+
+/* ── Add New List Column Card ── */
+.add-column-card {
+  width: 260px;
+  min-width: 260px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+}
+
+.add-column-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.85rem 1rem;
+  background: none;
+  border: 2px dashed var(--line);
+  cursor: pointer;
+  color: var(--muted);
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 600;
+  width: 100%;
+  transition: background 0.1s, color 0.1s, border-color 0.15s;
+}
+.add-column-btn:hover {
+  background: var(--panel);
+  color: var(--ink);
+  border-color: var(--ink);
+}
+
+.add-column-expanded {
+  width: 100%;
+  background: var(--panel);
+  border: 2.5px solid var(--line);
+  box-shadow: 3px 3px 0 var(--line);
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.add-column-expanded input {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: 2px solid var(--line);
+  background: var(--bg);
+  color: var(--ink);
+  outline: none;
+}
+.add-column-expanded input:focus {
+  border-color: var(--ink);
+  background: var(--panel);
+}
+.add-column-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+/* ── "All Boards" nav pill in sidebar ── */
+.boards-nav-pill {
+  background: none;
+}
+.boards-nav-pill.active,
+.boards-nav-pill:hover {
+  background: var(--ink);
+  color: var(--panel);
+}
+.boards-nav-pill.active svg,
+.boards-nav-pill:hover svg {
+  color: var(--panel);
+}
+
+/* InlineTaskComposer within column — compact variant */
+.board-column-body .inline-composer {
+  margin-bottom: 0;
+}

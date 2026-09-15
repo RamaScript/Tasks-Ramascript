@@ -1,0 +1,194 @@
+import { useState, useRef, useEffect } from "react";
+import {
+  CheckCheck,
+  Edit2,
+  MoreVertical,
+  Trash2,
+} from "lucide-react";
+import type { Task, TaskList } from "../types/tasks";
+import { CompletedSection } from "./CompletedSection";
+import { InlineTaskComposer } from "./InlineTaskComposer";
+import { TaskItem } from "./TaskItem";
+
+interface BoardColumnProps {
+  list: TaskList;
+  tasks: Task[];
+  subtasksMap: Record<string, Task[]>;
+  selectedTaskId: string | null;
+  onSelectTask: (task: Task) => void;
+  onAddTask: (
+    title: string,
+    extra?: { notes?: string; due?: string; starred?: boolean },
+    targetList?: string,
+  ) => void;
+  onToggleComplete: (task: Task) => void;
+  onToggleStar: (taskId: string) => void;
+  onDeleteTask: (taskId: string) => void;
+  onRenameList: (listId: string, title: string) => void;
+  onDeleteList: (listId: string) => void;
+  onClearCompleted: (listId: string) => void;
+  accentColor?: string;
+}
+
+export function BoardColumn({
+  list,
+  tasks,
+  subtasksMap,
+  selectedTaskId,
+  onSelectTask,
+  onAddTask,
+  onToggleComplete,
+  onToggleStar,
+  onDeleteTask,
+  onRenameList,
+  onDeleteList,
+  onClearCompleted,
+  accentColor = "var(--accent)",
+}: BoardColumnProps) {
+  const [showMenu, setShowMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const topLevelTasks = tasks.filter((t) => !t.parent);
+  const activeTasks = topLevelTasks.filter((t) => t.status === "needsAction");
+  const completedTasks = topLevelTasks.filter((t) => t.status === "completed");
+
+  return (
+    <div className="board-column">
+      {/* Column Header */}
+      <div className="board-column-header">
+        <div className="board-column-title-wrap">
+          <span
+            className="column-color-indicator"
+            style={{ backgroundColor: accentColor }}
+          />
+          <h2 className="board-column-title" title={list.title}>
+            {list.title}
+          </h2>
+          <span className="column-count-badge">{activeTasks.length}</span>
+        </div>
+
+        <div className="dropdown-wrapper" ref={menuRef}>
+          <button
+            type="button"
+            className="column-menu-btn"
+            aria-label="Column options"
+            onClick={() => setShowMenu((v) => !v)}
+          >
+            <MoreVertical size={16} />
+          </button>
+
+          {showMenu ? (
+            <div className="dropdown-menu align-right">
+              <button
+                type="button"
+                className="dropdown-item"
+                onClick={() => {
+                  setShowMenu(false);
+                  const next = window.prompt("Rename list", list.title);
+                  if (next && next.trim()) {
+                    onRenameList(list.id, next.trim());
+                  }
+                }}
+              >
+                <Edit2 size={13} />
+                <span>Rename List</span>
+              </button>
+
+              <button
+                type="button"
+                className="dropdown-item"
+                disabled={completedTasks.length === 0}
+                onClick={() => {
+                  setShowMenu(false);
+                  if (
+                    window.confirm(
+                      `Clear all ${completedTasks.length} completed task${completedTasks.length === 1 ? "" : "s"} in "${list.title}"?`,
+                    )
+                  ) {
+                    onClearCompleted(list.id);
+                  }
+                }}
+              >
+                <CheckCheck size={13} />
+                <span>Clear Completed ({completedTasks.length})</span>
+              </button>
+
+              <div className="dropdown-divider" />
+
+              <button
+                type="button"
+                className="dropdown-item danger"
+                onClick={() => {
+                  setShowMenu(false);
+                  if (
+                    window.confirm(
+                      `Delete list "${list.title}"? This cannot be undone.`,
+                    )
+                  ) {
+                    onDeleteList(list.id);
+                  }
+                }}
+              >
+                <Trash2 size={13} />
+                <span>Delete List</span>
+              </button>
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      {/* Column Body */}
+      <div className="board-column-body">
+        {/* Inline "+ Add a task" card */}
+        <InlineTaskComposer
+          onAddTask={(title, extra) => onAddTask(title, extra, list.id)}
+        />
+
+        {/* Active Tasks */}
+        <div className="column-task-list">
+          {activeTasks.length === 0 && completedTasks.length === 0 ? (
+            <div className="column-empty-state">
+              <span>No tasks yet</span>
+              <p>Click &quot;Add a task&quot; to begin</p>
+            </div>
+          ) : null}
+
+          {activeTasks.map((task) => (
+            <TaskItem
+              key={task.id}
+              task={task}
+              subtasks={subtasksMap[task.id] ?? []}
+              isSelected={selectedTaskId === task.id}
+              onSelectTask={onSelectTask}
+              onToggleComplete={onToggleComplete}
+              onToggleStar={onToggleStar}
+              onDeleteTask={onDeleteTask}
+            />
+          ))}
+        </div>
+
+        {/* Completed Tasks Accordion */}
+        <CompletedSection
+          completedTasks={completedTasks}
+          subtasksMap={subtasksMap}
+          selectedTaskId={selectedTaskId}
+          onSelectTask={onSelectTask}
+          onToggleComplete={onToggleComplete}
+          onToggleStar={onToggleStar}
+          onDeleteTask={onDeleteTask}
+          onClearCompleted={() => onClearCompleted(list.id)}
+        />
+      </div>
+    </div>
+  );
+}
