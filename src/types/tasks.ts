@@ -14,6 +14,7 @@ export interface TaskList {
 
 export interface Task {
   id: string;
+  listId?: string;
   title: string;
   notes?: string;
   due?: string;

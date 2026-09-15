@@ -44,6 +44,7 @@ function getInitialDemoTasks(): Record<string, Task[]> {
     "demo-focus": [
       {
         id: "demo-t1",
+        listId: "demo-focus",
         title: "Overhaul Google Tasks Neo-Brutalist UI",
         notes: "Tactile high-contrast design with responsive layout, quick date chips, and keyboard navigation.",
         status: "needsAction",
@@ -51,6 +52,7 @@ function getInitialDemoTasks(): Record<string, Task[]> {
       },
       {
         id: "demo-t2",
+        listId: "demo-focus",
         title: "Audit Authorized JavaScript Origins in GCP",
         notes: "Verify http://localhost:5173 and production Vercel domains are registered in OAuth Client settings.",
         status: "needsAction",
@@ -58,6 +60,7 @@ function getInitialDemoTasks(): Record<string, Task[]> {
       },
       {
         id: "demo-t3",
+        listId: "demo-focus",
         title: "Ship RFC 3339 Date Serializer & Deserializer",
         notes: "Prevents empty due date string 400 Bad Request error on Google Tasks API.",
         status: "completed",
@@ -65,6 +68,7 @@ function getInitialDemoTasks(): Record<string, Task[]> {
       },
       {
         id: "demo-t4",
+        listId: "demo-focus",
         title: "Deploy Vercel Production Build",
         notes: "Run full TypeScript validation and preview performance.",
         status: "needsAction",
@@ -74,6 +78,7 @@ function getInitialDemoTasks(): Record<string, Task[]> {
     "demo-system": [
       {
         id: "demo-t5",
+        listId: "demo-system",
         title: "Configure OAuth consent screen test users",
         notes: "Add personal Gmail accounts while app status is in 'Testing' phase.",
         status: "needsAction",
@@ -81,6 +86,7 @@ function getInitialDemoTasks(): Record<string, Task[]> {
       },
       {
         id: "demo-t6",
+        listId: "demo-system",
         title: "Dark mode contrast ratio calibration",
         notes: "Refine charcoal borders to eliminate high-contrast glare.",
         status: "completed",
@@ -89,6 +95,7 @@ function getInitialDemoTasks(): Record<string, Task[]> {
     "demo-life": [
       {
         id: "demo-t7",
+        listId: "demo-life",
         title: "Order tactile mechanical keyboard switches",
         notes: "High-contrast cyber yellow keycaps.",
         status: "needsAction",
@@ -268,6 +275,7 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
       const formattedDue = toRFC3339Date(extra?.due);
       const optimisticTask: Task = {
         id: isDemo ? `demo-${Date.now()}` : `temp-${Date.now()}`,
+        listId: selectedListId,
         title: title.trim(),
         status: "needsAction",
         notes: extra?.notes?.trim() ?? "",
@@ -312,18 +320,21 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
 
   const updateTaskById = useCallback(
     async (taskId: string, updates: Partial<Task>) => {
-      if (!accessToken || !selectedListId) return;
-      if (!isDemo && selectedListId.startsWith("demo-")) return;
+      if (!accessToken) return;
 
       const currentTask = tasks.find((task) => task.id === taskId);
       if (!currentTask) return;
+
+      const targetListId = currentTask.listId || selectedListId;
+      if (!targetListId) return;
+      if (!isDemo && targetListId.startsWith("demo-")) return;
 
       const sanitizedUpdates = { ...updates };
       if ("due" in updates) {
         sanitizedUpdates.due = toRFC3339Date(updates.due) ?? undefined;
       }
 
-      const optimistic = { ...currentTask, ...sanitizedUpdates };
+      const optimistic = { ...currentTask, ...sanitizedUpdates, listId: targetListId };
       setTasks((current) =>
         current.map((task) => (task.id === taskId ? optimistic : task)),
       );
@@ -332,8 +343,8 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
 
       if (isDemo) {
         const tasksMap = getDemoTasksMap();
-        const listTasks = tasksMap[selectedListId] ?? [];
-        tasksMap[selectedListId] = listTasks.map((t) =>
+        const listTasks = tasksMap[targetListId] ?? [];
+        tasksMap[targetListId] = listTasks.map((t) =>
           t.id === taskId ? optimistic : t,
         );
         saveDemoTasksMap(tasksMap);
@@ -344,7 +355,7 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
       try {
         const nextTask = await updateTask(
           accessToken,
-          selectedListId,
+          targetListId,
           taskId,
           sanitizedUpdates,
         );
@@ -381,11 +392,14 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
 
   const removeTask = useCallback(
     async (taskId: string) => {
-      if (!accessToken || !selectedListId) return;
-      if (!isDemo && selectedListId.startsWith("demo-")) return;
+      if (!accessToken) return;
 
       const currentTask = tasks.find((task) => task.id === taskId);
       if (!currentTask) return;
+
+      const targetListId = currentTask.listId || selectedListId;
+      if (!targetListId) return;
+      if (!isDemo && targetListId.startsWith("demo-")) return;
 
       setTasks((current) => current.filter((task) => task.id !== taskId));
       setSyncStatus("syncing");
@@ -393,15 +407,15 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
 
       if (isDemo) {
         const tasksMap = getDemoTasksMap();
-        const listTasks = tasksMap[selectedListId] ?? [];
-        tasksMap[selectedListId] = listTasks.filter((t) => t.id !== taskId);
+        const listTasks = tasksMap[targetListId] ?? [];
+        tasksMap[targetListId] = listTasks.filter((t) => t.id !== taskId);
         saveDemoTasksMap(tasksMap);
         setSyncStatus("synced");
         return;
       }
 
       try {
-        await deleteTask(accessToken, selectedListId, taskId);
+        await deleteTask(accessToken, targetListId, taskId);
         setSyncStatus("synced");
       } catch (err) {
         if (
@@ -429,17 +443,24 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
 
   const moveTask = useCallback(
     async (taskId: string, targetListId: string) => {
+      const taskToMove = tasks.find((t) => t.id === taskId);
+      if (!taskToMove) return;
+
+      const sourceListId = taskToMove.listId || selectedListId;
       if (
         !accessToken ||
-        !selectedListId ||
+        !sourceListId ||
         !targetListId ||
-        selectedListId === targetListId
+        sourceListId === targetListId
       ) {
         return;
       }
-
-      const taskToMove = tasks.find((t) => t.id === taskId);
-      if (!taskToMove) return;
+      if (
+        !isDemo &&
+        (sourceListId.startsWith("demo-") || targetListId.startsWith("demo-"))
+      ) {
+        return;
+      }
 
       // Optimistic removal from current list
       setTasks((current) => current.filter((t) => t.id !== taskId));
@@ -448,10 +469,11 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
 
       if (isDemo) {
         const tasksMap = getDemoTasksMap();
-        const srcTasks = tasksMap[selectedListId] ?? [];
+        const srcTasks = tasksMap[sourceListId] ?? [];
         const dstTasks = tasksMap[targetListId] ?? [];
-        tasksMap[selectedListId] = srcTasks.filter((t) => t.id !== taskId);
-        tasksMap[targetListId] = [taskToMove, ...dstTasks];
+        const movedTask: Task = { ...taskToMove, listId: targetListId };
+        tasksMap[sourceListId] = srcTasks.filter((t) => t.id !== taskId);
+        tasksMap[targetListId] = [movedTask, ...dstTasks];
         saveDemoTasksMap(tasksMap);
         setSyncStatus("synced");
         return;
@@ -460,7 +482,7 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
       try {
         await moveTaskBetweenLists(
           accessToken,
-          selectedListId,
+          sourceListId,
           targetListId,
           taskToMove,
         );

@@ -94,7 +94,9 @@ export async function fetchTasksForList(
     accessToken,
     `/lists/${listId}/tasks`,
   );
-  return (data.items ?? []).filter((task) => !task.deleted);
+  return (data.items ?? [])
+    .filter((task) => !task.deleted)
+    .map((task) => ({ ...task, listId }));
 }
 
 export async function createTaskList(
@@ -112,7 +114,7 @@ export async function updateTaskList(
   listId: string,
   title: string,
 ): Promise<TaskList> {
-  return request<TaskList>(accessToken, `/lists/${listId}`, {
+  return request<TaskList>(accessToken, `/users/@me/lists/${listId}`, {
     method: "PATCH",
     body: JSON.stringify({ title }),
   });
@@ -122,9 +124,19 @@ export async function deleteTaskList(
   accessToken: string,
   listId: string,
 ): Promise<void> {
-  await request<void>(accessToken, `/lists/${listId}`, {
-    method: "DELETE",
-  });
+  try {
+    await request<void>(accessToken, `/users/@me/lists/${listId}`, {
+      method: "DELETE",
+    });
+  } catch (err) {
+    if (
+      err instanceof Error &&
+      (err.message.includes("404") || err.message.includes("notFound"))
+    ) {
+      return;
+    }
+    throw err;
+  }
 }
 
 export async function createTask(
@@ -146,10 +158,11 @@ export async function createTask(
     body.due = formattedDue;
   }
 
-  return request<Task>(accessToken, `/lists/${listId}/tasks`, {
+  const created = await request<Task>(accessToken, `/lists/${listId}/tasks`, {
     method: "POST",
     body: JSON.stringify(body),
   });
+  return { ...created, listId };
 }
 
 export async function updateTask(
@@ -168,10 +181,15 @@ export async function updateTask(
     body.due = formatted ?? null;
   }
 
-  return request<Task>(accessToken, `/lists/${listId}/tasks/${taskId}`, {
-    method: "PATCH",
-    body: JSON.stringify(body),
-  });
+  const updated = await request<Task>(
+    accessToken,
+    `/lists/${listId}/tasks/${taskId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    },
+  );
+  return { ...updated, listId };
 }
 
 export async function deleteTask(
@@ -179,9 +197,19 @@ export async function deleteTask(
   listId: string,
   taskId: string,
 ): Promise<void> {
-  await request<void>(accessToken, `/lists/${listId}/tasks/${taskId}`, {
-    method: "DELETE",
-  });
+  try {
+    await request<void>(accessToken, `/lists/${listId}/tasks/${taskId}`, {
+      method: "DELETE",
+    });
+  } catch (err) {
+    if (
+      err instanceof Error &&
+      (err.message.includes("404") || err.message.includes("notFound"))
+    ) {
+      return;
+    }
+    throw err;
+  }
 }
 
 export async function moveTaskBetweenLists(
@@ -199,3 +227,4 @@ export async function moveTaskBetweenLists(
   await deleteTask(accessToken, sourceListId, task.id);
   return created;
 }
+
