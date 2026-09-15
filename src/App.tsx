@@ -1,11 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
-  ChevronRight,
+  Calendar,
+  CheckCircle2,
+  GitBranch,
   HelpCircle,
+  LayoutGrid,
+  Moon,
   Search,
+  ShieldCheck,
   Sparkles,
+  Star,
+  Sun,
   X,
+  Zap,
 } from "lucide-react";
 import "./App.css";
 import { MasonryView } from "./components/MasonryView";
@@ -195,101 +203,152 @@ export function App() {
   if (!session) {
     return (
       <div className="landing-shell">
-        <header className="topbar landing-topbar">
+        <header className="landing-topbar">
           <div className="brand-wrap">
-            <span className="brand-block">TASKS RAMASCRIPT</span>
+            <span className="brand-block">TASKS</span>
+            <span className="brand-sub">RAMASCRIPT</span>
           </div>
-          <button type="button" className="ghost-button" onClick={() => setShowSetupModal(true)}>
-            <HelpCircle size={16} /> GCP SETUP GUIDE
-          </button>
+          <div className="landing-topbar-actions">
+            <button
+              type="button"
+              className="ghost-button icon-only"
+              onClick={() => setDarkMode((v) => !v)}
+              title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              {darkMode ? <Sun size={17} /> : <Moon size={17} />}
+            </button>
+            <button
+              type="button"
+              className="ghost-button"
+              onClick={() => setShowSetupModal(true)}
+            >
+              <HelpCircle size={15} /> GCP Guide
+            </button>
+            <button
+              type="button"
+              className="secondary-button tiny"
+              onClick={startDemoMode}
+            >
+              <Sparkles size={14} /> Demo Mode
+            </button>
+          </div>
         </header>
 
-        <main className="landing-page">
-          <section className="hero-panel">
-            <div className="hero-copy">
-              <p className="eyebrow">AUTHENTIC GOOGLE TASKS // NEO-BRUTALISM</p>
-              <h1>TASKS.<br />WITHOUT THE<br />BORING UI.</h1>
-              <p className="lede">
-                The authentic flow of Google Tasks — multi-column board view, rapid entry, subtasks, starred smart list, and an inspector drawer — built with bold Neo-Brutalism.
-                <br />
-                Direct two-way sync with Google Cloud, or test offline in Demo Sandbox.
-              </p>
+        <main className="landing-main">
+          <section className="landing-hero">
+            <div className="hero-badge">
+              <span className="pulse-dot" /> GOOGLE TASKS // PINTEREST MASONRY
+            </div>
+            <h1 className="hero-headline">
+              Organize anything.
+              <br />
+              <span className="highlight-text">Visually fast.</span>
+            </h1>
+            <p className="hero-subline">
+              A high-contrast Pinterest board view for Google Tasks.
+              Instant two-way sync, rapid entry, nested subtasks, and zero clutter.
+            </p>
 
-              <div className="cta-row">
-                <button type="button" className="primary-button" onClick={() => void signIn()} disabled={status === "signing-in"}>
-                  {status === "signing-in" ? "CONNECTING TO GOOGLE..." : <><span>CONTINUE WITH GOOGLE</span> <ChevronRight size={16} /></>}
-                </button>
-                <button type="button" className="secondary-button" onClick={startDemoMode}>
-                  <Sparkles size={16} /> TRY DEMO SANDBOX
-                </button>
-              </div>
+            <div className="hero-cta-group">
+              <button
+                type="button"
+                className="google-signin-btn"
+                onClick={() => void signIn()}
+                disabled={status === "signing-in"}
+              >
+                <svg className="google-icon" viewBox="0 0 24 24" width="20" height="20">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                </svg>
+                <span>{status === "signing-in" ? "Connecting to Google..." : "Continue with Google"}</span>
+              </button>
 
-              {status === "error" && error ? (
-                <div className="error-block">
-                  <p><strong>AUTH NOTICE:</strong> {error}</p>
-                  <div style={{ marginTop: "0.5rem", display: "flex", gap: "0.5rem" }}>
-                    <button type="button" className="mini-button" onClick={startDemoMode}>OPEN DEMO MODE</button>
-                    <button type="button" className="mini-button" onClick={() => setShowSetupModal(true)}>VIEW SETUP INSTRUCTIONS</button>
-                  </div>
-                </div>
-              ) : null}
-
-              <p className="microcopy">NO DATABASE · GOOGLE DIRECT API · 100% PRIVATE · TWO-WAY SYNC</p>
+              <button
+                type="button"
+                className="secondary-button hero-secondary"
+                onClick={startDemoMode}
+              >
+                <Sparkles size={16} /> Explore Demo Sandbox
+              </button>
             </div>
 
-            <div className="hero-aside">
-              <div className="mini-app-shell">
-                <div className="mini-app-header">
-                  <span>TASKS RAMASCRIPT</span>
-                  <span className="sync-pill synced">● READY</span>
+            {status === "error" && error ? (
+              <div className="landing-error-box">
+                <AlertCircle size={16} />
+                <span>{error}</span>
+              </div>
+            ) : null}
+
+            <div className="hero-features-row">
+              <div className="hero-feature-item">
+                <Zap size={14} /> 2-Way Google Sync
+              </div>
+              <div className="hero-feature-item">
+                <LayoutGrid size={14} /> Pinterest Masonry
+              </div>
+              <div className="hero-feature-item">
+                <ShieldCheck size={14} /> 100% Private Client
+              </div>
+            </div>
+          </section>
+
+          {/* Realistic Pinterest Board Showcase Preview */}
+          <section className="landing-preview-board">
+            <div className="preview-board-header">
+              <div className="preview-dot red" />
+              <div className="preview-dot yellow" />
+              <div className="preview-dot green" />
+              <span className="preview-title">tasks.google.com // LIVE BOARD PREVIEW</span>
+            </div>
+
+            <div className="preview-board-cards">
+              <div className="preview-card" style={{ "--card-accent": "#ffe600" } as React.CSSProperties}>
+                <div className="preview-card-tag" style={{ color: "#b45309", borderColor: "#ffe600" }}>Focus // Sprint</div>
+                <h4>Design System &amp; Pinterest Flow</h4>
+                <p>Multi-column masonry grid with color-coded list bars and rapid task composer.</p>
+                <div className="preview-card-meta">
+                  <span className="preview-chip"><Calendar size={11} /> Today</span>
+                  <span className="preview-chip"><GitBranch size={11} /> 2/3</span>
+                  <Star size={13} fill="#f59e0b" color="#f59e0b" />
                 </div>
-                <div className="mini-app-body">
-                  <aside className="mini-side">
-                    <div className="mini-line active">⊞ ALL BOARDS</div>
-                    <div className="mini-line">★ STARRED</div>
-                    <div className="mini-line">FOCUS SPRINT</div>
-                    <div className="mini-line">PERSONAL</div>
-                  </aside>
-                  <section className="mini-main">
-                    <div className="mini-main-header">BOARD VIEW</div>
-                    <div className="task-row">
-                      <span className="checkbox done" />
-                      <span>Side-by-side list columns</span>
-                    </div>
-                    <div className="task-row">
-                      <span className="checkbox done" />
-                      <span>Slide-over task inspector</span>
-                    </div>
-                    <div className="task-row">
-                      <span className="checkbox empty" />
-                      <span>Nested subtasks &amp; starred</span>
-                    </div>
-                    <div style={{ marginTop: "1rem" }}>
-                      <button type="button" className="primary-button tiny" onClick={startDemoMode}>
-                        ⚡ EXPLORE DEMO BOARD
-                      </button>
-                    </div>
-                  </section>
+              </div>
+
+              <div className="preview-card" style={{ "--card-accent": "#06b6d4" } as React.CSSProperties}>
+                <div className="preview-card-tag" style={{ color: "#0891b2", borderColor: "#06b6d4" }}>System Architecture</div>
+                <h4>Two-Way Direct Google Sync</h4>
+                <p>Private client-side connection straight to Google Tasks API with instant local cache.</p>
+                <div className="preview-card-meta">
+                  <span className="preview-chip"><CheckCircle2 size={12} color="#10b981" /> Completed</span>
+                </div>
+              </div>
+
+              <div className="preview-card" style={{ "--card-accent": "#10b981" } as React.CSSProperties}>
+                <div className="preview-card-tag" style={{ color: "#059669", borderColor: "#10b981" }}>Personal</div>
+                <h4>Quarterly Goals &amp; Deep Work</h4>
+                <p>Distraction-free workspace with keyboard shortcuts (? key) and slide-over inspector.</p>
+                <div className="preview-card-meta">
+                  <span className="preview-chip"><Calendar size={11} /> Tomorrow</span>
                 </div>
               </div>
             </div>
           </section>
 
-          <section className="ticker" aria-hidden="true">
-            <div className="ticker-track">
-              <span>AUTHENTIC GOOGLE TASKS FLOW ✦ NEO-BRUTALISM ✦ BOARD VIEW ✦ RAPID ENTRY ✦ NESTED SUBTASKS ✦ STARRED SMART LIST ✦ TWO-WAY SYNC ✦ </span>
-              <span>AUTHENTIC GOOGLE TASKS FLOW ✦ NEO-BRUTALISM ✦ BOARD VIEW ✦ RAPID ENTRY ✦ NESTED SUBTASKS ✦ STARRED SMART LIST ✦ TWO-WAY SYNC ✦ </span>
-            </div>
-          </section>
-
-          <footer style={{ marginTop: "3rem", padding: "1.5rem 0", borderTop: "3px solid var(--line)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
-            <span style={{ fontSize: "0.75rem", fontWeight: 700, fontFamily: "var(--font-mono)", textTransform: "uppercase" }}>
-              TASKS RAMASCRIPT · TWO-WAY CLIENT FOR GOOGLE TASKS
+          <footer className="landing-footer">
+            <span className="landing-footer-copy">
+              TASKS RAMASCRIPT · AUTHENTIC GOOGLE TASKS CLIENT
             </span>
-            <div style={{ display: "flex", gap: "1.5rem", fontSize: "0.75rem", fontWeight: 700, fontFamily: "var(--font-mono)" }}>
-              <a href="/privacy" style={{ color: "var(--ink)", textDecoration: "underline" }}>PRIVACY POLICY</a>
-              <a href="/terms" style={{ color: "var(--ink)", textDecoration: "underline" }}>TERMS OF SERVICE</a>
-              <button type="button" style={{ background: "none", border: "none", color: "var(--ink)", fontWeight: 700, textDecoration: "underline", cursor: "pointer", padding: 0 }} onClick={() => setShowSetupModal(true)}>GCP GUIDE</button>
+            <div className="landing-footer-links">
+              <a href="/privacy">Privacy Policy</a>
+              <a href="/terms">Terms of Service</a>
+              <button
+                type="button"
+                className="footer-link-btn"
+                onClick={() => setShowSetupModal(true)}
+              >
+                GCP Setup
+              </button>
             </div>
           </footer>
         </main>
@@ -340,7 +399,7 @@ export function App() {
           <div className="auth-expired-banner">
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
               <AlertCircle size={18} />
-              <span>GOOGLE SESSION EXPIRED — PLEASE RECONNECT TO SYNC</span>
+              <span>GOOGLE SYNC PAUSED — PLEASE RECONNECT TO RESUME SYNC</span>
             </div>
             <div className="demo-banner-actions">
               <button type="button" className="primary-button tiny" onClick={() => void signIn(true)}>RECONNECT NOW</button>
@@ -367,7 +426,7 @@ export function App() {
               </div>
             </div>
 
-            {loading ? (
+            {loading && taskLists.length === 0 ? (
               <div className="loading-state board-loading">
                 <span>LOADING BOARDS...</span>
                 <div className="load-bars"><span /><span /><span /></div>
@@ -432,7 +491,7 @@ export function App() {
                 isStarredDefault={selectedListId === "starred"}
               />
 
-              {loading ? (
+              {loading && visibleActiveTasks.length === 0 ? (
                 <div className="loading-state">
                   <span>LOADING TASKS...</span>
                   <div className="load-bars"><span /><span /><span /></div>

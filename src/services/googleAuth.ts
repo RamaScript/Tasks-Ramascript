@@ -170,6 +170,44 @@ export async function signInWithGoogle(
   return result;
 }
 
+export function checkAndCleanUrlHash(): AuthSession | null {
+  if (typeof window === "undefined" || !window.location.hash) {
+    return null;
+  }
+
+  const hash = window.location.hash.substring(1);
+  if (!hash.includes("access_token")) {
+    return null;
+  }
+
+  try {
+    const params = new URLSearchParams(hash);
+    const accessToken = params.get("access_token");
+    if (!accessToken) return null;
+
+    const expiresIn = parseInt(params.get("expires_in") || "3600", 10);
+    const expiresAt = Date.now() + Math.max(300, expiresIn - 60) * 1000;
+
+    // Immediately remove token from browser address bar so it's never visible
+    window.history.replaceState(null, "", window.location.pathname + window.location.search);
+
+    return {
+      accessToken,
+      expiresAt,
+      user: {
+        name: "Google User",
+        email: "Connected Account",
+      },
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function silentRefreshToken(clientId: string): Promise<AuthSession> {
+  return signInWithGoogle(clientId, { prompt: "" });
+}
+
 export function clearGoogleSelection(): void {
   if (typeof window !== "undefined" && window.google?.accounts?.id) {
     window.google.accounts.id.disableAutoSelect();

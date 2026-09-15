@@ -96,10 +96,16 @@ async function request<T>(
     }
 
     if (isAuthError) {
-      throw new Error(`UNAUTHENTICATED: ${message}`);
+      throw new Error("UNAUTHENTICATED: Google session expired or requires authentication.");
     }
 
-    throw new Error(message || "GOOGLE_TASKS_REQUEST_FAILED");
+    // Strip any potential sensitive tokens from generic error message
+    const cleanMessage = (message || "GOOGLE_TASKS_REQUEST_FAILED")
+      .replace(/ya29\.[a-zA-Z0-9_-]+/g, "[TOKEN]")
+      .replace(/access token/gi, "session")
+      .replace(/bearer\s+[a-zA-Z0-9._-]+/gi, "bearer [AUTH]");
+
+    throw new Error(cleanMessage);
   }
 
   if (response.status === 204) {

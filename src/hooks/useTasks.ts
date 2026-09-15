@@ -23,6 +23,8 @@ interface UseTasksOptions {
 const DEMO_LISTS_STORAGE_KEY = "tasko-demo-lists";
 const DEMO_TASKS_STORAGE_KEY = "tasko-demo-tasks";
 const STARRED_TASKS_STORAGE_KEY = "tasko-starred-task-ids";
+const USER_LISTS_CACHE_KEY = "tasko-user-lists";
+const USER_TASKS_CACHE_KEY = "tasko-user-tasks";
 
 const DEFAULT_DEMO_LISTS: TaskList[] = [
   { id: "demo-focus", title: "Focus // Sprint" },
@@ -121,9 +123,46 @@ function getInitialDemoTasks(): Record<string, Task[]> {
 }
 
 export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions) {
-  const [taskLists, setTaskLists] = useState<TaskList[]>([]);
+  const [taskLists, setTaskLists] = useState<TaskList[]>(() => {
+    if (isDemo) {
+      try {
+        const raw = localStorage.getItem(DEMO_LISTS_STORAGE_KEY);
+        if (raw) return JSON.parse(raw);
+      } catch {
+        // ignore
+      }
+      return DEFAULT_DEMO_LISTS;
+    }
+    try {
+      const cached = localStorage.getItem(USER_LISTS_CACHE_KEY);
+      if (cached) return JSON.parse(cached);
+    } catch {
+      // ignore
+    }
+    return [];
+  });
+
   const [selectedListId, setSelectedListId] = useState<string>("all");
-  const [tasksByList, setTasksByList] = useState<Record<string, Task[]>>({});
+
+  const [tasksByList, setTasksByList] = useState<Record<string, Task[]>>(() => {
+    if (isDemo) {
+      try {
+        const raw = localStorage.getItem(DEMO_TASKS_STORAGE_KEY);
+        if (raw) return JSON.parse(raw);
+      } catch {
+        // ignore
+      }
+      return getInitialDemoTasks();
+    }
+    try {
+      const cached = localStorage.getItem(USER_TASKS_CACHE_KEY);
+      if (cached) return JSON.parse(cached);
+    } catch {
+      // ignore
+    }
+    return {};
+  });
+
   const [sortMode, setSortMode] = useState<SortMode>("my-order");
   const [starredIds, setStarredIds] = useState<Set<string>>(() => {
     try {
@@ -134,7 +173,7 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
     }
     return new Set(["demo-t1", "demo-t2"]);
   });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("synced");
   const [error, setError] = useState<string | null>(null);
 
@@ -182,7 +221,7 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
 
   const handleApiError = useCallback(
     (err: unknown, defaultMessage: string) => {
-      const message = err instanceof Error ? err.message : defaultMessage;
+      let message = err instanceof Error ? err.message : defaultMessage;
       if (
         message.includes("UNAUTHENTICATED") ||
         message.includes("401") ||
@@ -193,6 +232,11 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
       ) {
         onAuthExpiredRef.current?.();
       }
+      // Never display raw tokens or credentials in the UI
+      message = message
+        .replace(/ya29\.[a-zA-Z0-9_-]+/g, "")
+        .replace(/access token/gi, "session")
+        .replace(/Expected OAuth 2[^.]+/gi, "Google authentication required");
       setError(message);
       setSyncStatus("error");
     },
@@ -202,9 +246,11 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
   // Fetch all lists and tasks across all lists
   const fetchAll = useCallback(async () => {
     if (!accessToken) {
-      setTaskLists([]);
-      setTasksByList({});
-      setSelectedListId("all");
+      if (isDemo) {
+        const lists = getDemoLists();
+        setTaskLists(lists);
+        setTasksByList(getDemoTasksMap());
+      }
       setLoading(false);
       return;
     }
@@ -232,6 +278,11 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
     try {
       const lists = await fetchTaskLists(accessToken);
       setTaskLists(lists);
+      try {
+        localStorage.setItem(USER_LISTS_CACHE_KEY, JSON.stringify(lists));
+      } catch {
+        // ignore
+      }
 
       // Fetch tasks for all lists in parallel
       const settled = await Promise.allSettled(
@@ -245,6 +296,11 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
       });
 
       setTasksByList(map);
+      try {
+        localStorage.setItem(USER_TASKS_CACHE_KEY, JSON.stringify(map));
+      } catch {
+        // ignore
+      }
       setSyncStatus("synced");
     } catch (err) {
       handleApiError(err, "TASKS_LOAD_FAILED");

@@ -69,7 +69,7 @@ export function SetupGuideModal({ onClose }: SetupGuideModalProps) {
           <p>
             Make sure your client ID is set in <code>.env</code>:
           </p>
-          <div className="setup-code-block">VITE_GOOGLE_CLIENT_ID=713710393955-n7ajcagu2n77foepjs1qddbm92ucdptl.apps.googleusercontent.com</div>
+          <div className="setup-code-block">VITE_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com</div>
         </div>
 
         <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1rem" }}>
