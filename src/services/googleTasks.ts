@@ -174,6 +174,7 @@ export async function createTask(
   accessToken: string,
   listId: string,
   payload: Partial<Task>,
+  parentTaskId?: string,
 ): Promise<Task> {
   const body: Record<string, unknown> = {
     title: payload.title?.trim() ?? "",
@@ -189,11 +190,16 @@ export async function createTask(
     body.due = formattedDue;
   }
 
-  const created = await request<Task>(accessToken, `/lists/${listId}/tasks`, {
-    method: "POST",
-    body: JSON.stringify(body),
-  });
-  return { ...created, listId };
+  const query = parentTaskId ? `?parent=${encodeURIComponent(parentTaskId)}` : "";
+  const created = await request<Task>(
+    accessToken,
+    `/lists/${listId}/tasks${query}`,
+    {
+      method: "POST",
+      body: JSON.stringify(body),
+    },
+  );
+  return { ...created, listId, parent: parentTaskId };
 }
 
 export async function updateTask(
@@ -257,5 +263,14 @@ export async function moveTaskBetweenLists(
   });
   await deleteTask(accessToken, sourceListId, task.id);
   return created;
+}
+
+export async function clearCompletedTasks(
+  accessToken: string,
+  listId: string,
+): Promise<void> {
+  await request<void>(accessToken, `/lists/${listId}/clear`, {
+    method: "POST",
+  });
 }
 

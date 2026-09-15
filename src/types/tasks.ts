@@ -4,6 +4,8 @@ export type FilterMode = "all" | "active" | "completed" | "today" | "overdue";
 
 export type SyncStatus = "synced" | "syncing" | "error";
 
+export type SortMode = "my-order" | "date" | "title" | "starred";
+
 export interface TaskList {
   id: string;
   title: string;
@@ -23,6 +25,8 @@ export interface Task {
   updated?: string;
   position?: string;
   deleted?: boolean;
+  parent?: string;
+  starred?: boolean;
 }
 
 export interface UserProfile {

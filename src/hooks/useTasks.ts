@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  clearCompletedTasks,
   createTask,
   createTaskList,
   deleteTask,
@@ -11,7 +12,7 @@ import {
   updateTask,
   updateTaskList,
 } from "../services/googleTasks";
-import type { FilterMode, SyncStatus, Task, TaskList } from "../types/tasks";
+import type { FilterMode, SortMode, SyncStatus, Task, TaskList } from "../types/tasks";
 
 interface UseTasksOptions {
   accessToken: string | null;
@@ -21,6 +22,7 @@ interface UseTasksOptions {
 
 const DEMO_LISTS_STORAGE_KEY = "tasko-demo-lists";
 const DEMO_TASKS_STORAGE_KEY = "tasko-demo-tasks";
+const STARRED_TASKS_STORAGE_KEY = "tasko-starred-task-ids";
 
 const DEFAULT_DEMO_LISTS: TaskList[] = [
   { id: "demo-focus", title: "FOCUS // SPRINT" },
@@ -46,9 +48,23 @@ function getInitialDemoTasks(): Record<string, Task[]> {
         id: "demo-t1",
         listId: "demo-focus",
         title: "Overhaul Google Tasks Neo-Brutalist UI",
-        notes: "Tactile high-contrast design with responsive layout, quick date chips, and keyboard navigation.",
+        notes: "Tactile high-contrast design with authentic Google Tasks flow, rapid entry, subtasks, and inspector drawer.",
         status: "needsAction",
         due: todayStr,
+      },
+      {
+        id: "demo-t1-sub1",
+        listId: "demo-focus",
+        parent: "demo-t1",
+        title: "Slide-over task inspector drawer",
+        status: "completed",
+      },
+      {
+        id: "demo-t1-sub2",
+        listId: "demo-focus",
+        parent: "demo-t1",
+        title: "Support inline '+ Add a task' with rapid Enter entry",
+        status: "needsAction",
       },
       {
         id: "demo-t2",
@@ -108,6 +124,16 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
   const [taskLists, setTaskLists] = useState<TaskList[]>([]);
   const [selectedListId, setSelectedListId] = useState<string>("");
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [sortMode, setSortMode] = useState<SortMode>("my-order");
+  const [starredIds, setStarredIds] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem(STARRED_TASKS_STORAGE_KEY);
+      if (raw) return new Set(JSON.parse(raw));
+    } catch {
+      // ignore
+    }
+    return new Set(["demo-t1", "demo-t2"]);
+  });
   const [loading, setLoading] = useState(true);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("synced");
   const [error, setError] = useState<string | null>(null);
@@ -278,10 +304,12 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
     void fetchAllRef.current();
   }, [accessToken, isDemo]);
 
-  const selectedList = useMemo(
-    () => taskLists.find((list) => list.id === selectedListId) ?? null,
-    [selectedListId, taskLists],
-  );
+  const selectedList = useMemo(() => {
+    if (selectedListId === "starred") {
+      return { id: "starred", title: "STARRED" };
+    }
+    return taskLists.find((list) => list.id === selectedListId) ?? null;
+  }, [selectedListId, taskLists]);
 
   const tasksLengthRef = useRef(0);
   useEffect(() => {
@@ -291,11 +319,23 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
   const setList = useCallback(
     async (listId: string) => {
       if (!accessToken || !listId) return;
-      if (!isDemo && listId.startsWith("demo-")) return;
+      if (!isDemo && listId.startsWith("demo-") && listId !== "starred") return;
       if (selectedListIdRef.current === listId && tasksLengthRef.current > 0) return;
       setSelectedListId(listId);
       setLoading(true);
       setSyncStatus("syncing");
+
+      if (listId === "starred") {
+        if (isDemo) {
+          const tasksMap = getDemoTasksMap();
+          const allTasks = Object.values(tasksMap).flat();
+          const starredTasks = allTasks.filter((t) => starredIds.has(t.id));
+          setTasks(starredTasks);
+        }
+        setSyncStatus("synced");
+        setLoading(false);
+        return;
+      }
 
       if (isDemo) {
         const tasksMap = getDemoTasksMap();
@@ -315,39 +355,57 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
         setLoading(false);
       }
     },
-    [accessToken, isDemo, getDemoTasksMap, handleApiError],
+    [accessToken, isDemo, getDemoTasksMap, handleApiError, starredIds],
   );
 
   const addTask = useCallback(
     async (title: string, extra?: Partial<Task>) => {
       if (!accessToken || !selectedListId || !title.trim()) return;
-      if (!isDemo && selectedListId.startsWith("demo-")) return;
+      const targetListId =
+        selectedListId === "starred" ? taskLists[0]?.id || "" : selectedListId;
+      if (!targetListId) return;
+      if (!isDemo && targetListId.startsWith("demo-")) return;
 
       const formattedDue = toRFC3339Date(extra?.due);
+      const isStarred = selectedListId === "starred" || Boolean(extra?.starred);
       const optimisticTask: Task = {
         id: isDemo ? `demo-${Date.now()}` : `temp-${Date.now()}`,
-        listId: selectedListId,
+        listId: targetListId,
         title: title.trim(),
         status: "needsAction",
         notes: extra?.notes?.trim() ?? "",
         due: formattedDue ?? undefined,
+        starred: isStarred,
       };
 
       setTasks((current) => [optimisticTask, ...current]);
+      if (isStarred) {
+        setStarredIds((prev) => {
+          const next = new Set(prev);
+          next.add(optimisticTask.id);
+          try {
+            localStorage.setItem(STARRED_TASKS_STORAGE_KEY, JSON.stringify(Array.from(next)));
+          } catch {
+            // ignore
+          }
+          return next;
+        });
+      }
+
       setSyncStatus("syncing");
       setError(null);
 
       if (isDemo) {
         const tasksMap = getDemoTasksMap();
-        const currentListTasks = tasksMap[selectedListId] ?? [];
-        tasksMap[selectedListId] = [optimisticTask, ...currentListTasks];
+        const currentListTasks = tasksMap[targetListId] ?? [];
+        tasksMap[targetListId] = [optimisticTask, ...currentListTasks];
         saveDemoTasksMap(tasksMap);
         setSyncStatus("synced");
         return;
       }
 
       try {
-        const created = await createTask(accessToken, selectedListId, {
+        const created = await createTask(accessToken, targetListId, {
           title: optimisticTask.title,
           notes: optimisticTask.notes,
           due: optimisticTask.due,
@@ -355,9 +413,22 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
         });
         setTasks((current) =>
           current.map((task) =>
-            task.id === optimisticTask.id ? created : task,
+            task.id === optimisticTask.id ? { ...created, starred: isStarred } : task,
           ),
         );
+        if (isStarred) {
+          setStarredIds((prev) => {
+            const next = new Set(prev);
+            next.delete(optimisticTask.id);
+            next.add(created.id);
+            try {
+              localStorage.setItem(STARRED_TASKS_STORAGE_KEY, JSON.stringify(Array.from(next)));
+            } catch {
+              // ignore
+            }
+            return next;
+          });
+        }
         setSyncStatus("synced");
       } catch (err) {
         setTasks((current) =>
@@ -366,7 +437,7 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
         handleApiError(err, "TASK_CREATE_FAILED");
       }
     },
-    [accessToken, isDemo, selectedListId, getDemoTasksMap, saveDemoTasksMap, handleApiError],
+    [accessToken, isDemo, selectedListId, taskLists, getDemoTasksMap, saveDemoTasksMap, handleApiError],
   );
 
   const updateTaskById = useCallback(
@@ -671,52 +742,234 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
     ],
   );
 
+  const toggleStarTask = useCallback((taskId: string) => {
+    setStarredIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(taskId)) {
+        next.delete(taskId);
+      } else {
+        next.add(taskId);
+      }
+      try {
+        localStorage.setItem(
+          STARRED_TASKS_STORAGE_KEY,
+          JSON.stringify(Array.from(next)),
+        );
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  }, []);
+
+  const addSubtask = useCallback(
+    async (parentTaskId: string, title: string) => {
+      if (!accessToken || !title.trim()) return;
+      const parentTask = tasks.find((t) => t.id === parentTaskId);
+      const targetListId =
+        parentTask?.listId ||
+        (selectedListId === "starred" ? taskLists[0]?.id || "" : selectedListId);
+      if (!targetListId) return;
+
+      const optimisticSubtask: Task = {
+        id: isDemo ? `demo-sub-${Date.now()}` : `temp-sub-${Date.now()}`,
+        listId: targetListId,
+        parent: parentTaskId,
+        title: title.trim(),
+        status: "needsAction",
+      };
+
+      setTasks((current) => [...current, optimisticSubtask]);
+      setSyncStatus("syncing");
+
+      if (isDemo) {
+        const tasksMap = getDemoTasksMap();
+        const currentListTasks = tasksMap[targetListId] ?? [];
+        tasksMap[targetListId] = [...currentListTasks, optimisticSubtask];
+        saveDemoTasksMap(tasksMap);
+        setSyncStatus("synced");
+        return;
+      }
+
+      try {
+        const created = await createTask(
+          accessToken,
+          targetListId,
+          { title: title.trim(), status: "needsAction" },
+          parentTaskId,
+        );
+        setTasks((current) =>
+          current.map((t) => (t.id === optimisticSubtask.id ? created : t)),
+        );
+        setSyncStatus("synced");
+      } catch (err) {
+        setTasks((current) =>
+          current.filter((t) => t.id !== optimisticSubtask.id),
+        );
+        handleApiError(err, "SUBTASK_CREATE_FAILED");
+      }
+    },
+    [
+      accessToken,
+      isDemo,
+      selectedListId,
+      taskLists,
+      tasks,
+      getDemoTasksMap,
+      saveDemoTasksMap,
+      handleApiError,
+    ],
+  );
+
+  const clearCompleted = useCallback(
+    async (listId?: string) => {
+      const targetListId =
+        listId || (selectedListId === "starred" ? "" : selectedListId);
+
+      setTasks((current) => current.filter((t) => t.status !== "completed"));
+      setSyncStatus("syncing");
+
+      if (isDemo) {
+        const tasksMap = getDemoTasksMap();
+        if (targetListId && tasksMap[targetListId]) {
+          tasksMap[targetListId] = tasksMap[targetListId].filter(
+            (t) => t.status !== "completed",
+          );
+        } else {
+          for (const key of Object.keys(tasksMap)) {
+            tasksMap[key] = tasksMap[key].filter(
+              (t) => t.status !== "completed",
+            );
+          }
+        }
+        saveDemoTasksMap(tasksMap);
+        setSyncStatus("synced");
+        return;
+      }
+
+      if (accessToken && targetListId) {
+        try {
+          await clearCompletedTasks(accessToken, targetListId);
+          setSyncStatus("synced");
+        } catch (err) {
+          handleApiError(err, "CLEAR_COMPLETED_FAILED");
+        }
+      } else {
+        setSyncStatus("synced");
+      }
+    },
+    [
+      accessToken,
+      isDemo,
+      selectedListId,
+      getDemoTasksMap,
+      saveDemoTasksMap,
+      handleApiError,
+    ],
+  );
+
+  const tasksWithMeta = useMemo(() => {
+    return tasks.map((task) => ({
+      ...task,
+      starred: starredIds.has(task.id),
+    }));
+  }, [tasks, starredIds]);
+
+  const subtasksMap = useMemo(() => {
+    const map: Record<string, Task[]> = {};
+    for (const task of tasksWithMeta) {
+      if (task.parent) {
+        if (!map[task.parent]) map[task.parent] = [];
+        map[task.parent].push(task);
+      }
+    }
+    return map;
+  }, [tasksWithMeta]);
+
+  const topLevelTasks = useMemo(() => {
+    if (selectedListId === "starred") {
+      return tasksWithMeta.filter((t) => t.starred);
+    }
+    return tasksWithMeta.filter((t) => !t.parent);
+  }, [selectedListId, tasksWithMeta]);
+
   const activeTasks = useMemo(
-    () => tasks.filter((task) => task.status === "needsAction"),
-    [tasks],
+    () => topLevelTasks.filter((task) => task.status === "needsAction"),
+    [topLevelTasks],
   );
 
   const completedTasks = useMemo(
-    () => tasks.filter((task) => task.status === "completed"),
-    [tasks],
+    () => topLevelTasks.filter((task) => task.status === "completed"),
+    [topLevelTasks],
   );
+
+  const sortedActiveTasks = useMemo(() => {
+    const list = [...activeTasks];
+    switch (sortMode) {
+      case "date":
+        return list.sort((a, b) => {
+          if (!a.due && !b.due) return 0;
+          if (!a.due) return 1;
+          if (!b.due) return -1;
+          return a.due.localeCompare(b.due);
+        });
+      case "title":
+        return list.sort((a, b) => a.title.localeCompare(b.title));
+      case "starred":
+        return list.sort((a, b) => {
+          if (a.starred && !b.starred) return -1;
+          if (!a.starred && b.starred) return 1;
+          return 0;
+        });
+      case "my-order":
+      default:
+        return list;
+    }
+  }, [activeTasks, sortMode]);
 
   const dueTodayTasks = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    return tasks.filter((task) => {
+    return topLevelTasks.filter((task) => {
       if (!task.due || task.status === "completed") return false;
       const dueDate = new Date(task.due);
       return dueDate.toDateString() === today.toDateString();
     });
-  }, [tasks]);
+  }, [topLevelTasks]);
 
   const overdueTasks = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    return tasks.filter((task) => {
+    return topLevelTasks.filter((task) => {
       if (!task.due || task.status === "completed") return false;
       const dueDate = new Date(task.due);
       return dueDate.getTime() < today.getTime();
     });
-  }, [tasks]);
+  }, [topLevelTasks]);
+
+  const starredCount = useMemo(() => {
+    return tasksWithMeta.filter((t) => t.starred && t.status === "needsAction")
+      .length;
+  }, [tasksWithMeta]);
 
   const listStats = useMemo(
     () => ({
-      all: tasks.length,
+      all: topLevelTasks.length,
       active: activeTasks.length,
       completed: completedTasks.length,
       today: dueTodayTasks.length,
       overdue: overdueTasks.length,
+      starred: starredCount,
     }),
     [
+      topLevelTasks.length,
       activeTasks.length,
       completedTasks.length,
       dueTodayTasks.length,
       overdueTasks.length,
-      tasks.length,
+      starredCount,
     ],
   );
 
@@ -724,7 +977,7 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
     (filter: FilterMode) => {
       switch (filter) {
         case "active":
-          return activeTasks;
+          return sortedActiveTasks;
         case "completed":
           return completedTasks;
         case "today":
@@ -732,29 +985,43 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
         case "overdue":
           return overdueTasks;
         default:
-          return tasks;
+          return topLevelTasks;
       }
     },
-    [activeTasks, completedTasks, dueTodayTasks, overdueTasks, tasks],
+    [
+      sortedActiveTasks,
+      completedTasks,
+      dueTodayTasks,
+      overdueTasks,
+      topLevelTasks,
+    ],
   );
 
   return {
     taskLists,
     selectedListId,
     selectedList,
-    tasks,
+    tasks: topLevelTasks,
+    activeTasks: sortedActiveTasks,
+    completedTasks,
+    subtasksMap,
+    sortMode,
+    setSortMode,
     loading,
     error,
     syncStatus,
     listStats,
     setList,
     addTask,
+    addSubtask,
     updateTaskById,
     removeTask,
     moveTask,
     addList,
     renameList,
     removeList,
+    clearCompleted,
+    toggleStarTask,
     getFilteredTasks,
     fetchAll,
   };
