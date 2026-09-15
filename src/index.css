@@ -1,18 +1,21 @@
 :root {
-  --bg: #f4f1ea;
-  --panel: #fffdf9;
-  --ink: #111111;
-  --line: #111111;
-  --muted: #4d473f;
-  --accent: #ffe14d;
-  --success: #188752;
-  --select: #fff3b0;
-  --warn: #ffe085;
-  --danger: #ffcece;
-  --overdue: #b3261e;
-  font-family: "Inter Tight", "Arial Black", "Segoe UI", sans-serif;
+  --bg: #e9e4da;
+  --panel: #f6f2e9;
+  --ink: #101010;
+  --line: #101010;
+  --muted: #55503f;
+  --accent: #e5ff2e;
+  --success: #0f7b3f;
+  --select: #101010;
+  --select-ink: #f6f2e9;
+  --warn: #ffd94a;
+  --danger: #ffd0ca;
+  --overdue: #d02c20;
+  --font-display: "Archivo", "Arial Black", sans-serif;
+  --font-mono: "Space Mono", "Courier New", monospace;
+  font-family: var(--font-mono), "Inter Tight", "Segoe UI", sans-serif;
   line-height: 1.4;
-  font-weight: 500;
+  font-weight: 400;
   color: var(--ink);
   background: var(--bg);
   font-synthesis: none;
@@ -22,27 +25,18 @@
 }
 
 :root body[data-theme="dark"] {
-  --bg: #111111;
-  --panel: #171717;
-  --ink: #f4f1ea;
-  --line: #f4f1ea;
-  --muted: #d9d0c6;
-  --accent: #ffe14d;
-  --success: #85f7b0;
-  --select: #3a3117;
-  --warn: #4d3f14;
-  --danger: #5c2626;
-  --overdue: #ff8a80;
-}
-
-* {
-  box-sizing: border-box;
-}
-
-body {
-  transition:
-    background-color 0.25s ease,
-    color 0.25s ease;
+  --bg: #0e0e0e;
+  --panel: #16130f;
+  --ink: #f6f2e9;
+  --line: #f6f2e9;
+  --muted: #b6ad97;
+  --accent: #e5ff2e;
+  --success: #7dffa3;
+  --select: #e5ff2e;
+  --select-ink: #101010;
+  --warn: #6b5a12;
+  --danger: #51201c;
+  --overdue: #ff7a6b;
 }
 
 * {
@@ -59,7 +53,21 @@ body {
   min-height: 100vh;
   background: var(--bg);
   color: var(--ink);
-  font-family: "Inter Tight", "Segoe UI", sans-serif;
+  font-family: var(--font-mono), "Segoe UI", sans-serif;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+  position: relative;
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 99998;
+  pointer-events: none;
+  opacity: 0.055;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 220 220' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 button,
@@ -81,7 +89,7 @@ input:focus-visible,
 textarea:focus-visible,
 select:focus-visible {
   outline: 3px solid var(--accent);
-  outline-offset: 2px;
+  outline-offset: 0;
 }
 
 img {
@@ -98,4 +106,14 @@ h2,
 h3,
 p {
   margin-top: 0;
+}
+
+::selection {
+  background: var(--ink);
+  color: var(--bg);
+}
+
+body[data-theme="dark"] ::selection {
+  background: var(--accent);
+  color: var(--ink);
 }

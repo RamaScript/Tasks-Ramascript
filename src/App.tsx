@@ -410,7 +410,7 @@ function App() {
       <div className="landing-shell">
         <header className="topbar landing-topbar">
           <div className="brand-wrap">
-            <span className="brand-block">TASKO</span>
+            <span className="brand-block">TASKS RAMASCRIPT</span>
           </div>
         </header>
 
@@ -460,7 +460,7 @@ function App() {
             <div className="hero-aside">
               <div className="mini-app-shell">
                 <div className="mini-app-header">
-                  <span>TASKO</span>
+                  <span>TASKS RAMASCRIPT</span>
                   <span className="sync-pill synced">● SYNCED</span>
                 </div>
                 <div className="mini-app-body">
@@ -489,9 +489,22 @@ function App() {
             </div>
           </section>
 
+          <section className="ticker" aria-hidden="true">
+            <div className="ticker-track">
+              <span>
+                TASKS WITHOUT THE BORING UI ✦ NO DATABASE ✦ YOUR DATA STAYS
+                IN GOOGLE ✦ ZERO BS ✦
+              </span>
+              <span>
+                TASKS WITHOUT THE BORING UI ✦ NO DATABASE ✦ YOUR DATA STAYS
+                IN GOOGLE ✦ ZERO BS ✦
+              </span>
+            </div>
+          </section>
+
           <section className="signin-panel">
             <div className="signin-card">
-              <p className="brand-line">TASKO</p>
+              <p className="brand-line">TASKS RAMASCRIPT</p>
               <h2>SIGN IN.</h2>
               <button
                 type="button"
@@ -523,7 +536,7 @@ function App() {
       <aside className={`sidebar ${sidebarOpen ? "open" : "collapsed"}`}>
         <div className="sidebar-header">
           <div className="brand-lockup">
-            <span className="brand-block">TASKO</span>
+            <span className="brand-block">TASKS RAMASCRIPT</span>
           </div>
           <button
             type="button"
@@ -800,7 +813,7 @@ function App() {
                   >
                     <button
                       type="button"
-                      className="task-check"
+                      className={`task-check ${task.status === "completed" ? "done" : ""}`}
                       aria-label={
                         task.status === "completed"
                           ? "Mark uncompleted"
