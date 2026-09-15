@@ -1,16 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  AlertCircle,
+  Calendar,
   CalendarDays,
   Check,
   ChevronRight,
   Circle,
   CircleDashed,
+  HelpCircle,
   LogOut,
   Moon,
   PanelLeftClose,
   PanelLeftOpen,
   Plus,
   Search,
+  Sparkles,
   Sun,
   Trash2,
   X,
@@ -18,6 +22,7 @@ import {
 import "./App.css";
 import { useGoogleAuth } from "./hooks/useGoogleAuth";
 import { useTasks } from "./hooks/useTasks";
+import { toInputDateFormat } from "./services/googleTasks";
 import type { FilterMode, Task, TaskList } from "./types/tasks";
 
 const filterLabels: Array<{ label: string; value: FilterMode }> = [
@@ -45,7 +50,7 @@ const shortcutRows: Array<{ keys: string; label: string }> = [
   { keys: "C", label: "complete task" },
   { keys: "E", label: "focus title" },
   { keys: "ENTER", label: "save in editor" },
-  { keys: "ESC", label: "close editor" },
+  { keys: "ESC", label: "close editor / modal" },
   { keys: "?", label: "show shortcuts" },
 ];
 
@@ -77,6 +82,25 @@ function isOverdue(task: Task): boolean {
   return due.getTime() < today.getTime();
 }
 
+function isDueToday(due?: string): boolean {
+  if (!due) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const d = dateFromDue(due);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime() === today.getTime();
+}
+
+function isDueTomorrow(due?: string): boolean {
+  if (!due) return false;
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(0, 0, 0, 0);
+  const d = dateFromDue(due);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime() === tomorrow.getTime();
+}
+
 interface TaskEditorProps {
   task: Task;
   taskLists: TaskList[];
@@ -87,7 +111,8 @@ interface TaskEditorProps {
     draft: { title: string; notes: string; due: string },
   ) => void;
   onDelete: (taskId: string) => void;
-  onGoToList: (listId: string) => void;
+  onMoveToList: (taskId: string, targetListId: string) => void;
+  onToggleStatus: (task: Task) => void;
 }
 
 function TaskEditor({
@@ -97,13 +122,23 @@ function TaskEditor({
   onClose,
   onSave,
   onDelete,
-  onGoToList,
+  onMoveToList,
+  onToggleStatus,
 }: TaskEditorProps) {
   const [draft, setDraft] = useState({
     title: task.title,
     notes: task.notes ?? "",
-    due: task.due ?? "",
+    due: toInputDateFormat(task.due),
   });
+
+  useEffect(() => {
+    // oxlint-disable-next-line react/set-state-in-effect -- sync draft state when active task updates
+    setDraft({
+      title: task.title,
+      notes: task.notes ?? "",
+      due: toInputDateFormat(task.due),
+    });
+  }, [task]);
 
   const handleSave = () => {
     onSave(task.id, { ...draft, title: draft.title.trim() || task.title });
@@ -142,9 +177,10 @@ function TaskEditor({
       </label>
 
       <label className="field-block">
-        <span>DETAILS</span>
+        <span>DETAILS & NOTES</span>
         <textarea
           value={draft.notes}
+          placeholder="Add descriptions, markdown links, checklist notes..."
           onChange={(event) =>
             setDraft((current) => ({ ...current, notes: event.target.value }))
           }
@@ -159,22 +195,39 @@ function TaskEditor({
       </label>
 
       <div className="field-row">
-        <label className="field-block half">
-          <span>DUE</span>
-          <input
-            type="date"
-            value={draft.due}
-            onChange={(event) =>
-              setDraft((current) => ({ ...current, due: event.target.value }))
-            }
-          />
-        </label>
+        <div className="field-block half">
+          <span>DUE DATE</span>
+          <div className="due-input-group">
+            <input
+              type="date"
+              value={draft.due}
+              onChange={(event) =>
+                setDraft((current) => ({ ...current, due: event.target.value }))
+              }
+            />
+            {draft.due ? (
+              <button
+                type="button"
+                className="mini-button"
+                onClick={() => setDraft((current) => ({ ...current, due: "" }))}
+                title="Clear due date"
+              >
+                CLEAR
+              </button>
+            ) : null}
+          </div>
+        </div>
 
         <label className="field-block half">
-          <span>GO TO LIST</span>
+          <span>MOVE TO LIST</span>
           <select
             value={selectedListId}
-            onChange={(event) => onGoToList(event.target.value)}
+            onChange={(event) => {
+              const targetId = event.target.value;
+              if (targetId && targetId !== selectedListId) {
+                onMoveToList(task.id, targetId);
+              }
+            }}
           >
             {taskLists.map((list) => (
               <option key={list.id} value={list.id}>
@@ -187,7 +240,22 @@ function TaskEditor({
 
       <div className="editor-actions">
         <button type="button" className="primary-button" onClick={handleSave}>
-          <Check size={16} /> SAVE
+          <Check size={16} /> SAVE CHANGES
+        </button>
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={() => onToggleStatus(task)}
+        >
+          {task.status === "completed" ? (
+            <>
+              <Circle size={15} /> MARK ACTIVE
+            </>
+          ) : (
+            <>
+              <Check size={15} /> MARK COMPLETED
+            </>
+          )}
         </button>
         <button
           type="button"
@@ -202,11 +270,29 @@ function TaskEditor({
 }
 
 function App() {
-  const { session, user, status, error, signIn, signOut } = useGoogleAuth();
+  const {
+    session,
+    user,
+    status,
+    error,
+    authExpired,
+    signIn,
+    signOut,
+    startDemoMode,
+    setAuthExpired,
+  } = useGoogleAuth();
+
   const [filter, setFilter] = useState<FilterMode>("all");
   const [search, setSearch] = useState("");
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [showSetupModal, setShowSetupModal] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newTaskDueChip, setNewTaskDueChip] = useState<
+    "none" | "today" | "tomorrow" | "next-week" | "custom"
+  >("none");
+  const [newTaskCustomDue, setNewTaskCustomDue] = useState("");
+  const [newTaskNotes, setNewTaskNotes] = useState("");
+  const [showNotesField, setShowNotesField] = useState(false);
   const [showNewListInput, setShowNewListInput] = useState(false);
   const [newListName, setNewListName] = useState("");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
@@ -227,11 +313,16 @@ function App() {
     addTask,
     updateTaskById,
     removeTask,
+    moveTask,
     addList,
     removeList,
     renameList,
     getFilteredTasks,
-  } = useTasks({ accessToken });
+  } = useTasks({
+    accessToken,
+    isDemo: session?.isDemo,
+    onAuthExpired: () => setAuthExpired(true),
+  });
 
   useEffect(() => {
     const handleOnlineStatus = () => setIsOnline(navigator.onLine);
@@ -270,10 +361,39 @@ function App() {
   const activeFilterLabel =
     filterLabels.find((item) => item.value === filter)?.label ?? "ALL";
 
+  const computeNewTaskDue = (): string => {
+    const now = new Date();
+    if (newTaskDueChip === "today") {
+      return now.toISOString().split("T")[0];
+    }
+    if (newTaskDueChip === "tomorrow") {
+      const tomorrow = new Date(now);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      return tomorrow.toISOString().split("T")[0];
+    }
+    if (newTaskDueChip === "next-week") {
+      const nextWeek = new Date(now);
+      nextWeek.setDate(nextWeek.getDate() + 7);
+      return nextWeek.toISOString().split("T")[0];
+    }
+    if (newTaskDueChip === "custom") {
+      return newTaskCustomDue;
+    }
+    return "";
+  };
+
   const handleCreateTask = () => {
     if (!newTaskTitle.trim()) return;
-    void addTask(newTaskTitle);
+    const due = computeNewTaskDue();
+    void addTask(newTaskTitle, {
+      notes: newTaskNotes,
+      due: due || undefined,
+    });
     setNewTaskTitle("");
+    setNewTaskNotes("");
+    setShowNotesField(false);
+    setNewTaskDueChip("none");
+    setNewTaskCustomDue("");
   };
 
   const handleSaveTask = (
@@ -371,6 +491,7 @@ function App() {
       if (event.key === "Escape") {
         event.preventDefault();
         setShowShortcuts(false);
+        setShowSetupModal(false);
         setSelectedTaskId(null);
       }
     };
@@ -412,6 +533,13 @@ function App() {
           <div className="brand-wrap">
             <span className="brand-block">TASKS RAMASCRIPT</span>
           </div>
+          <button
+            type="button"
+            className="ghost-button"
+            onClick={() => setShowSetupModal(true)}
+          >
+            <HelpCircle size={16} /> GCP SETUP GUIDE
+          </button>
         </header>
 
         <main className="landing-page">
@@ -428,7 +556,7 @@ function App() {
               <p className="lede">
                 A fast, brutalist interface for your Google Tasks.
                 <br />
-                Your data stays in Google. We just give it a better home.
+                Direct two-way sync with Google Cloud. Or test offline in Demo Sandbox.
               </p>
 
               <div className="cta-row">
@@ -439,21 +567,47 @@ function App() {
                   disabled={status === "signing-in"}
                 >
                   {status === "signing-in" ? (
-                    "SIGNING IN..."
+                    "CONNECTING TO GOOGLE..."
                   ) : (
                     <>
                       CONTINUE WITH GOOGLE <ChevronRight size={16} />
                     </>
                   )}
                 </button>
+
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={startDemoMode}
+                >
+                  <Sparkles size={16} /> TRY DEMO SANDBOX
+                </button>
               </div>
 
               {status === "error" && error ? (
-                <p className="error-block">{error}</p>
+                <div className="error-block">
+                  <p><strong>AUTH NOTICE:</strong> {error}</p>
+                  <div style={{ marginTop: "0.5rem", display: "flex", gap: "0.5rem" }}>
+                    <button
+                      type="button"
+                      className="mini-button"
+                      onClick={startDemoMode}
+                    >
+                      OPEN DEMO MODE
+                    </button>
+                    <button
+                      type="button"
+                      className="mini-button"
+                      onClick={() => setShowSetupModal(true)}
+                    >
+                      VIEW SETUP INSTRUCTIONS
+                    </button>
+                  </div>
+                </div>
               ) : null}
 
               <p className="microcopy">
-                NO ACCOUNT TO CREATE. NO DATABASE. NO BS.
+                NO SEPARATE DATABASE · GOOGLE DIRECT API · 100% PRIVATE
               </p>
             </div>
 
@@ -461,27 +615,36 @@ function App() {
               <div className="mini-app-shell">
                 <div className="mini-app-header">
                   <span>TASKS RAMASCRIPT</span>
-                  <span className="sync-pill synced">● SYNCED</span>
+                  <span className="sync-pill synced">● READY</span>
                 </div>
                 <div className="mini-app-body">
                   <aside className="mini-side">
                     <div className="mini-line active">TODAY</div>
+                    <div className="mini-line">DEV SPRINT</div>
                     <div className="mini-line">PERSONAL</div>
-                    <div className="mini-line">WORK</div>
                   </aside>
                   <section className="mini-main">
-                    <div className="mini-main-header">12 TASKS</div>
+                    <div className="mini-main-header">SAMPLE BOARD</div>
                     <div className="task-row">
-                      <span className="checkbox empty" />
-                      <span>Finish homepage</span>
-                    </div>
-                    <div className="task-row">
-                      <span className="checkbox empty" />
-                      <span>Reply to Nikhil</span>
-                    </div>
-                    <div className="task-row done">
                       <span className="checkbox done" />
-                      <span>Buy groceries</span>
+                      <span>Overhaul Brutalist UI</span>
+                    </div>
+                    <div className="task-row">
+                      <span className="checkbox empty" />
+                      <span>Verify RFC 3339 date serializer</span>
+                    </div>
+                    <div className="task-row">
+                      <span className="checkbox empty" />
+                      <span>Add authorized origins to GCP</span>
+                    </div>
+                    <div style={{ marginTop: "1rem" }}>
+                      <button
+                        type="button"
+                        className="primary-button tiny"
+                        onClick={startDemoMode}
+                      >
+                        ⚡ EXPLORE DEMO BOARD
+                      </button>
                     </div>
                   </section>
                 </div>
@@ -492,12 +655,10 @@ function App() {
           <section className="ticker" aria-hidden="true">
             <div className="ticker-track">
               <span>
-                TASKS WITHOUT THE BORING UI ✦ NO DATABASE ✦ YOUR DATA STAYS
-                IN GOOGLE ✦ ZERO BS ✦
+                TASKS WITHOUT THE BORING UI ✦ RFC 3339 SYNC ✦ NO DATABASE ✦ YOUR DATA STAYS IN GOOGLE ✦ ZERO BS ✦
               </span>
               <span>
-                TASKS WITHOUT THE BORING UI ✦ NO DATABASE ✦ YOUR DATA STAYS
-                IN GOOGLE ✦ ZERO BS ✦
+                TASKS WITHOUT THE BORING UI ✦ RFC 3339 SYNC ✦ NO DATABASE ✦ YOUR DATA STAYS IN GOOGLE ✦ ZERO BS ✦
               </span>
             </div>
           </section>
@@ -505,21 +666,126 @@ function App() {
           <section className="signin-panel">
             <div className="signin-card">
               <p className="brand-line">TASKS RAMASCRIPT</p>
-              <h2>SIGN IN.</h2>
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={() => void signIn()}
-                disabled={status === "signing-in"}
-              >
-                G Continue with Google
-              </button>
+              <h2>GET STARTED.</h2>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                <button
+                  type="button"
+                  className="primary-button"
+                  onClick={() => void signIn()}
+                  disabled={status === "signing-in"}
+                >
+                  G Continue with Google
+                </button>
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={startDemoMode}
+                >
+                  ⚡ Launch Demo Sandbox (No Login)
+                </button>
+              </div>
               <p className="signin-note">
-                By continuing, you allow Tasko to access your Google Tasks.
+                Need to set up Google OAuth Client ID?{" "}
+                <button
+                  type="button"
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "inherit",
+                    fontWeight: 700,
+                    textDecoration: "underline",
+                    cursor: "pointer",
+                    padding: 0,
+                  }}
+                  onClick={() => setShowSetupModal(true)}
+                >
+                  Read the setup checklist.
+                </button>
               </p>
             </div>
           </section>
         </main>
+
+        {showSetupModal ? (
+          <div
+            className="shortcut-overlay"
+            role="dialog"
+            aria-modal="true"
+            onClick={() => setShowSetupModal(false)}
+          >
+            <div
+              className="setup-guide-box"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="shortcut-header">
+                <span>GOOGLE CLOUD CONSOLE SETUP GUIDE</span>
+                <button
+                  type="button"
+                  className="icon-button"
+                  onClick={() => setShowSetupModal(false)}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="setup-step">
+                <span className="setup-step-tag">STEP 1</span>
+                <h4>Authorized JavaScript Origins</h4>
+                <p>
+                  In Google Cloud Console under <strong>APIs & Services &gt; Credentials &gt; OAuth 2.0 Client IDs</strong>:
+                  Ensure your local and production URLs are added to <strong>Authorized JavaScript origins</strong>:
+                </p>
+                <div className="setup-code-block">http://localhost:5173</div>
+                <div className="setup-code-block">http://127.0.0.1:5173</div>
+              </div>
+
+              <div className="setup-step">
+                <span className="setup-step-tag">STEP 2</span>
+                <h4>Enable Google Tasks API</h4>
+                <p>
+                  Go to <strong>APIs & Services &gt; Library</strong>, search for <strong>Google Tasks API</strong>, and click <strong>Enable</strong>.
+                </p>
+              </div>
+
+              <div className="setup-step">
+                <span className="setup-step-tag">STEP 3</span>
+                <h4>OAuth Consent Screen Scopes</h4>
+                <p>
+                  Under <strong>APIs & Services &gt; OAuth consent screen</strong>, ensure these scopes are added:
+                </p>
+                <div className="setup-code-block">https://www.googleapis.com/auth/tasks</div>
+                <div className="setup-code-block">openid, email, profile</div>
+              </div>
+
+              <div className="setup-step">
+                <span className="setup-step-tag">STEP 4</span>
+                <h4>Add Test Users (If App is in Testing)</h4>
+                <p>
+                  If your app status is <strong>Testing</strong>, Google blocks non-test accounts. Add your Google email address to the <strong>Test Users</strong> list in the OAuth consent screen.
+                </p>
+              </div>
+
+              <div className="setup-step">
+                <span className="setup-step-tag">STEP 5</span>
+                <h4>Environment Variable</h4>
+                <p>
+                  Make sure your client ID is set in <code>.env</code>:
+                </p>
+                <div className="setup-code-block">VITE_GOOGLE_CLIENT_ID=your_client_id.apps.googleusercontent.com</div>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1rem" }}>
+                <button
+                  type="button"
+                  className="primary-button"
+                  onClick={() => setShowSetupModal(false)}
+                >
+                  GOT IT, CLOSE
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -529,7 +795,9 @@ function App() {
       ? "◌ SYNCING..."
       : syncStatus === "error"
         ? "! SYNC ERROR"
-        : "● SYNCED";
+        : session.isDemo
+          ? "● DEMO MODE"
+          : "● SYNCED";
 
   return (
     <div className="app-shell">
@@ -549,7 +817,7 @@ function App() {
         </div>
 
         <nav className="sidebar-nav" aria-label="Task navigation">
-          <p className="label">TASKS</p>
+          <p className="label">VIEWS</p>
           {sidebarNav.map((item) => {
             const Icon = item.icon;
             const count = listStats[item.value];
@@ -651,8 +919,32 @@ function App() {
                 referrerPolicy="no-referrer"
               />
             ) : null}
-            <span>{user?.email ?? "Google account"}</span>
+            <div>
+              <div style={{ fontWeight: 800 }}>{user?.name ?? "Logged In"}</div>
+              <div style={{ opacity: 0.7, fontSize: "0.6rem" }}>
+                {user?.email ?? "Google Account"}
+              </div>
+            </div>
           </div>
+
+          {session.isDemo ? (
+            <button
+              type="button"
+              className="primary-button tiny"
+              onClick={() => void signIn()}
+            >
+              CONNECT GOOGLE TASKS
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="ghost-button"
+              onClick={startDemoMode}
+            >
+              SWITCH TO DEMO
+            </button>
+          )}
+
           <button
             type="button"
             className="ghost-button"
@@ -686,6 +978,16 @@ function App() {
             <button
               type="button"
               className="icon-button"
+              title="Google Cloud Setup Guide"
+              aria-label="Google Cloud Setup Guide"
+              onClick={() => setShowSetupModal(true)}
+            >
+              <HelpCircle size={18} />
+            </button>
+            <button
+              type="button"
+              className="icon-button"
+              title="Keyboard shortcuts"
               aria-label="Keyboard shortcuts"
               onClick={() => setShowShortcuts(true)}
             >
@@ -694,6 +996,7 @@ function App() {
             <button
               type="button"
               className="icon-button"
+              title="Toggle theme"
               aria-label="Toggle dark mode"
               onClick={() => setDarkMode((value) => !value)}
             >
@@ -701,6 +1004,60 @@ function App() {
             </button>
           </div>
         </header>
+
+        {session.isDemo ? (
+          <div className="demo-banner">
+            <span>⚡ DEMO SANDBOX ACTIVE · RUNNING LOCALLY WITH MOCK DATA</span>
+            <div className="demo-banner-actions">
+              <button
+                type="button"
+                className="mini-button"
+                onClick={() => setShowSetupModal(true)}
+              >
+                GCP GUIDE
+              </button>
+              <button
+                type="button"
+                className="mini-button"
+                onClick={() => void signIn()}
+              >
+                CONNECT GOOGLE ACCOUNT
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {authExpired ? (
+          <div className="auth-expired-banner">
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <AlertCircle size={18} />
+              <span>GOOGLE SESSION EXPIRED — PLEASE RECONNECT TO SYNC</span>
+            </div>
+            <div className="demo-banner-actions">
+              <button
+                type="button"
+                className="primary-button tiny"
+                onClick={() => void signIn()}
+              >
+                RECONNECT NOW
+              </button>
+              <button
+                type="button"
+                className="mini-button"
+                onClick={startDemoMode}
+              >
+                USE DEMO MODE
+              </button>
+              <button
+                type="button"
+                className="mini-button"
+                onClick={() => setAuthExpired(false)}
+              >
+                DISMISS
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         {!isOnline ? (
           <div className="offline-banner">
@@ -715,7 +1072,7 @@ function App() {
               id="task-search"
               type="text"
               value={search}
-              placeholder="Find something..."
+              placeholder="Filter tasks by name or notes... (Press '/' to focus)"
               aria-label="Search tasks"
               onChange={(event) => setSearch(event.target.value)}
             />
@@ -747,27 +1104,105 @@ function App() {
         </section>
 
         <section className="task-composer">
-          <input
-            id="quick-task-input"
-            type="text"
-            value={newTaskTitle}
-            onChange={(event) => setNewTaskTitle(event.target.value)}
-            placeholder="What needs to be done?"
-            aria-label="Add a task"
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                handleCreateTask();
-              }
-            }}
-          />
-          <button
-            type="button"
-            className="primary-button"
-            onClick={() => void handleCreateTask()}
-          >
-            ADD TASK
-          </button>
+          <div className="composer-main-row">
+            <input
+              id="quick-task-input"
+              type="text"
+              value={newTaskTitle}
+              onChange={(event) => setNewTaskTitle(event.target.value)}
+              placeholder="What needs to be done? (Press 'N' to focus, 'Enter' to add)"
+              aria-label="Add a task"
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  handleCreateTask();
+                }
+              }}
+            />
+            <button
+              type="button"
+              className="primary-button"
+              onClick={handleCreateTask}
+            >
+              ADD TASK
+            </button>
+          </div>
+
+          {showNotesField ? (
+            <textarea
+              className="composer-notes-area"
+              placeholder="Optional notes or details for this task..."
+              value={newTaskNotes}
+              onChange={(e) => setNewTaskNotes(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                  e.preventDefault();
+                  handleCreateTask();
+                }
+              }}
+            />
+          ) : null}
+
+          <div className="composer-options-row">
+            <div className="chip-group">
+              <span className="microcopy" style={{ marginRight: "0.2rem" }}>
+                DUE:
+              </span>
+              <button
+                type="button"
+                className={`chip ${newTaskDueChip === "none" ? "active" : ""}`}
+                onClick={() => setNewTaskDueChip("none")}
+              >
+                NO DUE
+              </button>
+              <button
+                type="button"
+                className={`chip ${newTaskDueChip === "today" ? "active" : ""}`}
+                onClick={() => setNewTaskDueChip("today")}
+              >
+                TODAY
+              </button>
+              <button
+                type="button"
+                className={`chip ${newTaskDueChip === "tomorrow" ? "active" : ""}`}
+                onClick={() => setNewTaskDueChip("tomorrow")}
+              >
+                TOMORROW
+              </button>
+              <button
+                type="button"
+                className={`chip ${newTaskDueChip === "next-week" ? "active" : ""}`}
+                onClick={() => setNewTaskDueChip("next-week")}
+              >
+                NEXT WEEK
+              </button>
+              <button
+                type="button"
+                className={`chip ${newTaskDueChip === "custom" ? "active" : ""}`}
+                onClick={() => setNewTaskDueChip("custom")}
+              >
+                <Calendar size={12} /> PICK DATE
+              </button>
+              {newTaskDueChip === "custom" ? (
+                <input
+                  type="date"
+                  className="chip-custom-date"
+                  value={newTaskCustomDue}
+                  onChange={(e) => setNewTaskCustomDue(e.target.value)}
+                />
+              ) : null}
+            </div>
+
+            <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+              <button
+                type="button"
+                className={`chip ${showNotesField ? "active" : ""}`}
+                onClick={() => setShowNotesField((v) => !v)}
+              >
+                {showNotesField ? "- HIDE NOTES" : "+ ADD NOTES"}
+              </button>
+            </div>
+          </div>
         </section>
 
         <div className="content-grid">
@@ -785,9 +1220,9 @@ function App() {
 
             {!loading && !visibleTasks.length ? (
               <div className="empty-state">
-                <p>NO TASKS.</p>
-                <h3>GOOD.</h3>
-                <p>YOU'RE DONE.</p>
+                <p>NO TASKS IN THIS VIEW.</p>
+                <h3>ALL CLEAR.</h3>
+                <p>READY FOR NEW OBJECTIVES.</p>
                 <button
                   type="button"
                   className="primary-button"
@@ -795,7 +1230,7 @@ function App() {
                     document.getElementById("quick-task-input")?.focus()
                   }
                 >
-                  + ADD TASK
+                  + ADD NEW TASK
                 </button>
               </div>
             ) : null}
@@ -805,51 +1240,87 @@ function App() {
                 <div className="task-count-row">
                   <span>{taskCountLabel}</span>
                 </div>
-                {visibleTasks.map((task) => (
-                  <article
-                    key={task.id}
-                    className={`task-item ${selectedTaskId === task.id ? "selected" : ""}`}
-                    onClick={() => setSelectedTaskId(task.id)}
-                  >
-                    <button
-                      type="button"
-                      className={`task-check ${task.status === "completed" ? "done" : ""}`}
-                      aria-label={
-                        task.status === "completed"
-                          ? "Mark uncompleted"
-                          : "Mark completed"
-                      }
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        void handleToggleComplete(task);
-                      }}
-                    >
-                      {task.status === "completed" ? (
-                        <Check size={16} />
-                      ) : (
-                        <Circle size={16} />
-                      )}
-                    </button>
+                {visibleTasks.map((task) => {
+                  const overdue = isOverdue(task);
+                  const today = isDueToday(task.due);
+                  const tomorrow = isDueTomorrow(task.due);
 
-                    <div className="task-main">
-                      <div
-                        className={`task-title ${task.status === "completed" ? "done" : ""}`}
+                  return (
+                    <article
+                      key={task.id}
+                      className={`task-item ${selectedTaskId === task.id ? "selected" : ""}`}
+                      onClick={() => setSelectedTaskId(task.id)}
+                    >
+                      <button
+                        type="button"
+                        className={`task-check ${task.status === "completed" ? "done" : ""}`}
+                        aria-label={
+                          task.status === "completed"
+                            ? "Mark uncompleted"
+                            : "Mark completed"
+                        }
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleToggleComplete(task);
+                        }}
                       >
-                        {task.title}
-                      </div>
-                      {task.notes ? (
-                        <p className="task-notes">{task.notes}</p>
-                      ) : null}
-                      {task.due ? (
-                        <p
-                          className={`task-date ${isOverdue(task) ? "overdue" : ""}`}
+                        {task.status === "completed" ? (
+                          <Check size={16} />
+                        ) : (
+                          <Circle size={16} />
+                        )}
+                      </button>
+
+                      <div className="task-main">
+                        <div
+                          className={`task-title ${task.status === "completed" ? "done" : ""}`}
                         >
-                          {formatDue(task.due)}
-                        </p>
-                      ) : null}
-                    </div>
-                  </article>
-                ))}
+                          {task.title}
+                        </div>
+                        {task.notes ? (
+                          <p className="task-notes">{task.notes}</p>
+                        ) : null}
+
+                        {task.due ? (
+                          <div style={{ marginTop: "0.35rem" }}>
+                            {overdue ? (
+                              <span className="date-badge overdue">
+                                <AlertCircle size={12} /> OVERDUE · {formatDue(task.due)}
+                              </span>
+                            ) : today ? (
+                              <span className="date-badge today">
+                                <Calendar size={12} /> DUE TODAY
+                              </span>
+                            ) : tomorrow ? (
+                              <span className="date-badge upcoming">
+                                <Calendar size={12} /> DUE TOMORROW
+                              </span>
+                            ) : (
+                              <span className="date-badge upcoming">
+                                <Calendar size={12} /> {formatDue(task.due)}
+                              </span>
+                            )}
+                          </div>
+                        ) : null}
+                      </div>
+
+                      <div className="task-item-actions">
+                        <button
+                          type="button"
+                          className="task-action-btn danger"
+                          title="Delete task"
+                          aria-label={`Delete ${task.title}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void removeTask(task.id);
+                          }}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
             ) : null}
           </section>
@@ -858,7 +1329,7 @@ function App() {
             {!selectedTask ? (
               <div className="editor-empty">
                 <p>SELECT A TASK.</p>
-                <span>CLICK ANY ITEM TO EDIT.</span>
+                <span>CLICK ANY ITEM TO INSPECT & EDIT.</span>
               </div>
             ) : (
               <TaskEditor
@@ -869,15 +1340,26 @@ function App() {
                 onClose={() => setSelectedTaskId(null)}
                 onSave={handleSaveTask}
                 onDelete={(taskId) => void removeTask(taskId)}
-                onGoToList={(listId) => void setList(listId)}
+                onMoveToList={(taskId, targetListId) =>
+                  void moveTask(taskId, targetListId)
+                }
+                onToggleStatus={handleToggleComplete}
               />
             )}
           </aside>
         </div>
 
         {showShortcuts ? (
-          <div className="shortcut-overlay" role="dialog" aria-modal="false">
-            <div className="shortcut-box">
+          <div
+            className="shortcut-overlay"
+            role="dialog"
+            aria-modal="true"
+            onClick={() => setShowShortcuts(false)}
+          >
+            <div
+              className="shortcut-box"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="shortcut-header">
                 <span>KEYBOARD SHORTCUTS</span>
                 <button
@@ -895,6 +1377,87 @@ function App() {
                     <span>{label}</span>
                   </div>
                 ))}
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {showSetupModal ? (
+          <div
+            className="shortcut-overlay"
+            role="dialog"
+            aria-modal="true"
+            onClick={() => setShowSetupModal(false)}
+          >
+            <div
+              className="setup-guide-box"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="shortcut-header">
+                <span>GOOGLE CLOUD CONSOLE SETUP GUIDE</span>
+                <button
+                  type="button"
+                  className="icon-button"
+                  onClick={() => setShowSetupModal(false)}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="setup-step">
+                <span className="setup-step-tag">STEP 1</span>
+                <h4>Authorized JavaScript Origins</h4>
+                <p>
+                  In Google Cloud Console under <strong>APIs & Services &gt; Credentials &gt; OAuth 2.0 Client IDs</strong>:
+                  Ensure your local and production URLs are added to <strong>Authorized JavaScript origins</strong>:
+                </p>
+                <div className="setup-code-block">http://localhost:5173</div>
+                <div className="setup-code-block">http://127.0.0.1:5173</div>
+              </div>
+
+              <div className="setup-step">
+                <span className="setup-step-tag">STEP 2</span>
+                <h4>Enable Google Tasks API</h4>
+                <p>
+                  Go to <strong>APIs & Services &gt; Library</strong>, search for <strong>Google Tasks API</strong>, and click <strong>Enable</strong>.
+                </p>
+              </div>
+
+              <div className="setup-step">
+                <span className="setup-step-tag">STEP 3</span>
+                <h4>OAuth Consent Screen Scopes</h4>
+                <p>
+                  Under <strong>APIs & Services &gt; OAuth consent screen</strong>, ensure these scopes are added:
+                </p>
+                <div className="setup-code-block">https://www.googleapis.com/auth/tasks</div>
+                <div className="setup-code-block">openid, email, profile</div>
+              </div>
+
+              <div className="setup-step">
+                <span className="setup-step-tag">STEP 4</span>
+                <h4>Add Test Users (If App is in Testing)</h4>
+                <p>
+                  If your app status is <strong>Testing</strong>, Google blocks non-test accounts. Add your Google email address to the <strong>Test Users</strong> list in the OAuth consent screen.
+                </p>
+              </div>
+
+              <div className="setup-step">
+                <span className="setup-step-tag">STEP 5</span>
+                <h4>Environment Variable</h4>
+                <p>
+                  Make sure your client ID is set in <code>.env</code>:
+                </p>
+                <div className="setup-code-block">VITE_GOOGLE_CLIENT_ID=713710393955-n7ajcagu2n77foepjs1qddbm92ucdptl.apps.googleusercontent.com</div>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1rem" }}>
+                <button
+                  type="button"
+                  className="primary-button"
+                  onClick={() => setShowSetupModal(false)}
+                >
+                  GOT IT, CLOSE
+                </button>
               </div>
             </div>
           </div>

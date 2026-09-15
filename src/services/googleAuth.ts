@@ -1,7 +1,7 @@
 import type { AuthSession, UserProfile } from "../types/tasks";
 
 const GOOGLE_SCRIPT_ID = "tasko-google-identity-script";
-const GOOGLE_SCOPE = "https://www.googleapis.com/auth/tasks";
+const GOOGLE_SCOPE = "https://www.googleapis.com/auth/tasks openid email profile";
 
 declare global {
   interface Window {
@@ -14,6 +14,7 @@ declare global {
             callback: (response: {
               access_token?: string;
               error?: string;
+              expires_in?: string | number;
             }) => void;
           }) => {
             requestAccessToken: () => void;
@@ -71,20 +72,24 @@ async function loadGoogleIdentityScript(): Promise<void> {
 }
 
 async function fetchUserProfile(accessToken: string): Promise<UserProfile> {
-  const response = await fetch(
-    "https://www.googleapis.com/oauth2/v3/userinfo",
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
+  try {
+    const response = await fetch(
+      "https://www.googleapis.com/oauth2/v3/userinfo",
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
       },
-    },
-  );
+    );
 
-  if (!response.ok) {
-    throw new Error("USER_INFO_REQUEST_FAILED");
+    if (!response.ok) {
+      return { email: "Connected Google Account", name: "Google User" };
+    }
+
+    return (await response.json()) as UserProfile;
+  } catch {
+    return { email: "Connected Google Account", name: "Google User" };
   }
-
-  return (await response.json()) as UserProfile;
 }
 
 export async function signInWithGoogle(clientId: string): Promise<AuthSession> {
@@ -102,6 +107,7 @@ export async function signInWithGoogle(clientId: string): Promise<AuthSession> {
     const wrappedCallback = async (response: {
       access_token?: string;
       error?: string;
+      expires_in?: string | number;
     }) => {
       try {
         if (response.error || !response.access_token) {
@@ -109,8 +115,15 @@ export async function signInWithGoogle(clientId: string): Promise<AuthSession> {
           return;
         }
 
+        const expiresIn =
+          typeof response.expires_in === "string"
+            ? parseInt(response.expires_in, 10)
+            : (response.expires_in ?? 3600);
+        // Set expiry buffer to 60s before actual expiry
+        const expiresAt = Date.now() + Math.max(300, expiresIn - 60) * 1000;
+
         const user = await fetchUserProfile(response.access_token);
-        resolve({ accessToken: response.access_token, user });
+        resolve({ accessToken: response.access_token, user, expiresAt });
       } catch (error) {
         reject(error);
       }

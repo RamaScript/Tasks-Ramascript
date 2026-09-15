@@ -33,4 +33,6 @@ export interface UserProfile {
 export interface AuthSession {
   accessToken: string;
   user: UserProfile;
+  expiresAt?: number;
+  isDemo?: boolean;
 }

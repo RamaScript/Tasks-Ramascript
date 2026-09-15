@@ -2,6 +2,34 @@ import type { Task, TaskList } from "../types/tasks";
 
 const BASE_URL = "https://tasks.googleapis.com/tasks/v1";
 
+export function toRFC3339Date(dateStr?: string): string | undefined {
+  if (!dateStr || !dateStr.trim()) return undefined;
+  const trimmed = dateStr.trim();
+  if (/^\d{4}-\d{2}-\d{2}T/.test(trimmed)) {
+    return trimmed;
+  }
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trimmed);
+  if (match) {
+    return `${match[1]}-${match[2]}-${match[3]}T00:00:00.000Z`;
+  }
+  const d = new Date(trimmed);
+  if (!Number.isNaN(d.getTime())) {
+    return d.toISOString();
+  }
+  return undefined;
+}
+
+export function toInputDateFormat(dateStr?: string): string {
+  if (!dateStr) return "";
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr);
+  if (match) {
+    return `${match[1]}-${match[2]}-${match[3]}`;
+  }
+  const d = new Date(dateStr);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toISOString().split("T")[0];
+}
+
 async function request<T>(
   accessToken: string,
   endpoint: string,
@@ -17,7 +45,29 @@ async function request<T>(
   });
 
   if (!response.ok) {
-    const message = await response.text();
+    const raw = await response.text();
+    let message = raw;
+    let isAuthError = response.status === 401;
+
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed.error?.message) {
+        message = parsed.error.message;
+      }
+      if (
+        parsed.error?.code === 401 ||
+        parsed.error?.status === "UNAUTHENTICATED"
+      ) {
+        isAuthError = true;
+      }
+    } catch {
+      // Keep raw message if not JSON
+    }
+
+    if (isAuthError) {
+      throw new Error(`UNAUTHENTICATED: ${message}`);
+    }
+
     throw new Error(message || "GOOGLE_TASKS_REQUEST_FAILED");
   }
 
@@ -82,14 +132,23 @@ export async function createTask(
   listId: string,
   payload: Partial<Task>,
 ): Promise<Task> {
+  const body: Record<string, unknown> = {
+    title: payload.title?.trim() ?? "",
+    status: payload.status ?? "needsAction",
+  };
+
+  if (payload.notes && payload.notes.trim()) {
+    body.notes = payload.notes.trim();
+  }
+
+  const formattedDue = toRFC3339Date(payload.due);
+  if (formattedDue) {
+    body.due = formattedDue;
+  }
+
   return request<Task>(accessToken, `/lists/${listId}/tasks`, {
     method: "POST",
-    body: JSON.stringify({
-      title: payload.title ?? "",
-      notes: payload.notes ?? "",
-      due: payload.due ?? "",
-      status: payload.status ?? "needsAction",
-    }),
+    body: JSON.stringify(body),
   });
 }
 
@@ -99,14 +158,19 @@ export async function updateTask(
   taskId: string,
   payload: Partial<Task>,
 ): Promise<Task> {
+  const body: Record<string, unknown> = {};
+
+  if (payload.title !== undefined) body.title = payload.title;
+  if (payload.notes !== undefined) body.notes = payload.notes;
+  if (payload.status !== undefined) body.status = payload.status;
+  if (payload.due !== undefined) {
+    const formatted = toRFC3339Date(payload.due);
+    body.due = formatted ?? null;
+  }
+
   return request<Task>(accessToken, `/lists/${listId}/tasks/${taskId}`, {
     method: "PATCH",
-    body: JSON.stringify({
-      title: payload.title,
-      notes: payload.notes,
-      due: payload.due,
-      status: payload.status,
-    }),
+    body: JSON.stringify(body),
   });
 }
 
@@ -118,4 +182,20 @@ export async function deleteTask(
   await request<void>(accessToken, `/lists/${listId}/tasks/${taskId}`, {
     method: "DELETE",
   });
+}
+
+export async function moveTaskBetweenLists(
+  accessToken: string,
+  sourceListId: string,
+  targetListId: string,
+  task: Task,
+): Promise<Task> {
+  const created = await createTask(accessToken, targetListId, {
+    title: task.title,
+    notes: task.notes,
+    due: task.due,
+    status: task.status,
+  });
+  await deleteTask(accessToken, sourceListId, task.id);
+  return created;
 }
