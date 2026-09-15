@@ -15,9 +15,10 @@ declare global {
               access_token?: string;
               error?: string;
               expires_in?: string | number;
+              scope?: string;
             }) => void;
           }) => {
-            requestAccessToken: () => void;
+            requestAccessToken: (overrideConfig?: { prompt?: string }) => void;
           };
         };
         id?: {
@@ -39,11 +40,16 @@ async function loadGoogleIdentityScript(): Promise<void> {
 
   const existing = document.getElementById(GOOGLE_SCRIPT_ID);
   if (existing) {
-    await new Promise<void>((resolve) => {
+    await new Promise<void>((resolve, reject) => {
+      let waited = 0;
       const interval = window.setInterval(() => {
+        waited += 100;
         if (window.google?.accounts?.oauth2) {
           window.clearInterval(interval);
           resolve();
+        } else if (waited > 8000) {
+          window.clearInterval(interval);
+          reject(new Error("GOOGLE_IDENTITY_LOAD_TIMEOUT"));
         }
       }, 100);
     });
@@ -61,11 +67,16 @@ async function loadGoogleIdentityScript(): Promise<void> {
     document.head.appendChild(script);
   });
 
-  await new Promise<void>((resolve) => {
+  await new Promise<void>((resolve, reject) => {
+    let waited = 0;
     const interval = window.setInterval(() => {
+      waited += 50;
       if (window.google?.accounts?.oauth2) {
         window.clearInterval(interval);
         resolve();
+      } else if (waited > 8000) {
+        window.clearInterval(interval);
+        reject(new Error("GOOGLE_IDENTITY_INIT_TIMEOUT"));
       }
     }, 50);
   });
@@ -92,7 +103,14 @@ async function fetchUserProfile(accessToken: string): Promise<UserProfile> {
   }
 }
 
-export async function signInWithGoogle(clientId: string): Promise<AuthSession> {
+export interface SignInOptions {
+  prompt?: string;
+}
+
+export async function signInWithGoogle(
+  clientId: string,
+  options?: SignInOptions,
+): Promise<AuthSession> {
   if (!clientId) {
     throw new Error("MISSING_GOOGLE_CLIENT_ID");
   }
@@ -108,10 +126,21 @@ export async function signInWithGoogle(clientId: string): Promise<AuthSession> {
       access_token?: string;
       error?: string;
       expires_in?: string | number;
+      scope?: string;
     }) => {
       try {
         if (response.error || !response.access_token) {
           reject(new Error(response.error ?? "GOOGLE_TOKEN_REQUEST_FAILED"));
+          return;
+        }
+
+        // Verify tasks scope was granted
+        if (response.scope && !response.scope.includes("tasks")) {
+          reject(
+            new Error(
+              "INSUFFICIENT_SCOPE: You must grant permission to access Google Tasks in the Google consent screen.",
+            ),
+          );
           return;
         }
 
@@ -135,7 +164,7 @@ export async function signInWithGoogle(clientId: string): Promise<AuthSession> {
       callback: wrappedCallback,
     });
 
-    client.requestAccessToken();
+    client.requestAccessToken(options?.prompt ? { prompt: options.prompt } : undefined);
   });
 
   return result;

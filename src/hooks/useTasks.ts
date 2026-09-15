@@ -127,6 +127,13 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
     }
   }, [isDemo]);
 
+  const onAuthExpiredRef = useRef(onAuthExpired);
+  useEffect(() => {
+    onAuthExpiredRef.current = onAuthExpired;
+  }, [onAuthExpired]);
+
+  const inFlightRef = useRef(false);
+
   // Demo storage helpers
   const getDemoLists = useCallback((): TaskList[] => {
     try {
@@ -159,13 +166,20 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
   const handleApiError = useCallback(
     (err: unknown, defaultMessage: string) => {
       const message = err instanceof Error ? err.message : defaultMessage;
-      if (message.includes("UNAUTHENTICATED") || message.includes("401")) {
-        onAuthExpired?.();
+      if (
+        message.includes("UNAUTHENTICATED") ||
+        message.includes("401") ||
+        message.includes("403") ||
+        message.includes("CREDENTIALS_MISSING") ||
+        message.includes("PERMISSION_DENIED") ||
+        message.includes("INSUFFICIENT_SCOPE")
+      ) {
+        onAuthExpiredRef.current?.();
       }
       setError(message);
       setSyncStatus("error");
     },
-    [onAuthExpired],
+    [],
   );
 
   const fetchAll = useCallback(async () => {
@@ -176,6 +190,9 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
       setLoading(false);
       return;
     }
+
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
 
     setLoading(true);
     setError(null);
@@ -194,6 +211,7 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
       setTasks(tasksMap[nextSelectedListId] ?? []);
       setSyncStatus("synced");
       setLoading(false);
+      inFlightRef.current = false;
       return;
     }
 
@@ -211,11 +229,29 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
       setSelectedListId(nextSelectedListId);
 
       if (nextSelectedListId) {
-        const nextTasks = await fetchTasksForList(
-          accessToken,
-          nextSelectedListId,
-        );
-        setTasks(nextTasks);
+        try {
+          const nextTasks = await fetchTasksForList(
+            accessToken,
+            nextSelectedListId,
+          );
+          setTasks(nextTasks);
+        } catch (listTasksErr) {
+          console.warn("Could not fetch tasks for list", nextSelectedListId, listTasksErr);
+          setTasks([]);
+          // Fallback to first list if active list had an issue
+          if (nextSelectedListId !== lists[0]?.id && lists[0]?.id) {
+            try {
+              const fallbackTasks = await fetchTasksForList(
+                accessToken,
+                lists[0].id,
+              );
+              setSelectedListId(lists[0].id);
+              setTasks(fallbackTasks);
+            } catch {
+              // Ignore fallback error
+            }
+          }
+        }
       } else {
         setTasks([]);
       }
@@ -224,6 +260,7 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
     } catch (err) {
       handleApiError(err, "TASKS_LOAD_FAILED");
     } finally {
+      inFlightRef.current = false;
       setLoading(false);
     }
   }, [accessToken, isDemo, getDemoLists, getDemoTasksMap, handleApiError]);
@@ -231,7 +268,7 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
   useEffect(() => {
     // oxlint-disable-next-line react/set-state-in-effect -- bootstrap on mount or auth change
     void fetchAll();
-  }, [fetchAll]);
+  }, [accessToken, isDemo, fetchAll]);
 
   const selectedList = useMemo(
     () => taskLists.find((list) => list.id === selectedListId) ?? null,

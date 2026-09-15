@@ -280,6 +280,7 @@ function App() {
     signOut,
     startDemoMode,
     setAuthExpired,
+    handleAuthExpired,
   } = useGoogleAuth();
 
   const [filter, setFilter] = useState<FilterMode>("all");
@@ -318,10 +319,11 @@ function App() {
     removeList,
     renameList,
     getFilteredTasks,
+    fetchAll,
   } = useTasks({
     accessToken,
     isDemo: session?.isDemo,
-    onAuthExpired: () => setAuthExpired(true),
+    onAuthExpired: handleAuthExpired,
   });
 
   useEffect(() => {
@@ -926,7 +928,15 @@ function App() {
         </div>
 
         <div className="sidebar-footer">
-          <div className={`sync-indicator ${syncStatus}`}>{statusText}</div>
+          <button
+            type="button"
+            className={`sync-indicator ${syncStatus}`}
+            onClick={() => void fetchAll()}
+            title="Click to sync with Google Tasks"
+            style={{ width: "100%", textAlign: "left", cursor: "pointer" }}
+          >
+            {statusText}
+          </button>
           <div className="account-card">
             {user?.picture ? (
               <img
@@ -1060,7 +1070,7 @@ function App() {
               <button
                 type="button"
                 className="primary-button tiny"
-                onClick={() => void signIn()}
+                onClick={() => void signIn(true)}
               >
                 RECONNECT NOW
               </button>

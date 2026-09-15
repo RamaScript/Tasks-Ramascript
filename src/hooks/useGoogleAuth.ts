@@ -10,7 +10,7 @@ export function useGoogleAuth() {
     if (!raw) return null;
     try {
       const parsed = JSON.parse(raw) as AuthSession;
-      if (!parsed.isDemo && parsed.expiresAt && Date.now() > parsed.expiresAt) {
+      if (!parsed.isDemo && (!parsed.expiresAt || Date.now() > parsed.expiresAt)) {
         localStorage.removeItem("tasko-session");
         return null;
       }
@@ -35,7 +35,7 @@ export function useGoogleAuth() {
     }
   }, [session]);
 
-  const signIn = useCallback(async () => {
+  const signIn = useCallback(async (forceConsent = false) => {
     if (!GOOGLE_CLIENT_ID) {
       setError("MISSING_GOOGLE_CLIENT_ID: Configure VITE_GOOGLE_CLIENT_ID in your .env file.");
       setStatus("error");
@@ -47,7 +47,10 @@ export function useGoogleAuth() {
     setAuthExpired(false);
 
     try {
-      const authSession = await signInWithGoogle(GOOGLE_CLIENT_ID);
+      const authSession = await signInWithGoogle(
+        GOOGLE_CLIENT_ID,
+        forceConsent ? { prompt: "consent select_account" } : undefined,
+      );
       setSession(authSession);
       setStatus("authenticated");
       setSyncStatus("synced");

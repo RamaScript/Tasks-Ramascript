@@ -35,10 +35,14 @@ async function request<T>(
   endpoint: string,
   init: RequestInit = {},
 ): Promise<T> {
+  if (!accessToken || !accessToken.trim()) {
+    throw new Error("UNAUTHENTICATED: No valid access token provided.");
+  }
+
   const response = await fetch(`${BASE_URL}${endpoint}`, {
     ...init,
     headers: {
-      Authorization: `Bearer ${accessToken}`,
+      Authorization: `Bearer ${accessToken.trim()}`,
       "Content-Type": "application/json",
       ...(init.headers ?? {}),
     },
@@ -54,11 +58,38 @@ async function request<T>(
       if (parsed.error?.message) {
         message = parsed.error.message;
       }
+      const errorStatus = parsed.error?.status ?? "";
+      const reason = parsed.error?.errors?.[0]?.reason ?? parsed.error?.details?.[0]?.reason ?? "";
+
       if (
+        response.status === 401 ||
         parsed.error?.code === 401 ||
-        parsed.error?.status === "UNAUTHENTICATED"
+        errorStatus === "UNAUTHENTICATED" ||
+        reason === "required" ||
+        reason === "CREDENTIALS_MISSING"
       ) {
         isAuthError = true;
+      } else if (
+        response.status === 403 &&
+        (reason === "insufficientPermissions" ||
+          reason === "ACCESS_TOKEN_SCOPE_INSUFFICIENT" ||
+          errorStatus === "PERMISSION_DENIED" ||
+          message.toLowerCase().includes("permission") ||
+          message.toLowerCase().includes("scope"))
+      ) {
+        isAuthError = true;
+      } else if (
+        reason === "SERVICE_DISABLED" ||
+        message.includes("Google Tasks API has not been used") ||
+        message.includes("is disabled")
+      ) {
+        message =
+          "GOOGLE_TASKS_API_DISABLED: Google Tasks API is not enabled in your Google Cloud project. Please enable it in Google Cloud Console: https://console.developers.google.com/apis/api/tasks.googleapis.com/overview";
+      } else if (
+        response.status === 403 &&
+        (reason === "rateLimitExceeded" || reason === "userRateLimitExceeded")
+      ) {
+        message = "RATE_LIMIT_EXCEEDED: Google Tasks API rate limit reached. Please wait a moment before syncing.";
       }
     } catch {
       // Keep raw message if not JSON
