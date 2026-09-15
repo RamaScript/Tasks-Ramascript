@@ -133,6 +133,7 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
   }, [onAuthExpired]);
 
   const inFlightRef = useRef(false);
+  const lastFetchTimeRef = useRef(0);
 
   // Demo storage helpers
   const getDemoLists = useCallback((): TaskList[] => {
@@ -191,7 +192,9 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
       return;
     }
 
-    if (inFlightRef.current) return;
+    const now = Date.now();
+    if (inFlightRef.current || now - lastFetchTimeRef.current < 1500) return;
+    lastFetchTimeRef.current = now;
     inFlightRef.current = true;
 
     setLoading(true);
@@ -265,20 +268,31 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
     }
   }, [accessToken, isDemo, getDemoLists, getDemoTasksMap, handleApiError]);
 
+  const fetchAllRef = useRef(fetchAll);
+  useEffect(() => {
+    fetchAllRef.current = fetchAll;
+  }, [fetchAll]);
+
   useEffect(() => {
     // oxlint-disable-next-line react/set-state-in-effect -- bootstrap on mount or auth change
-    void fetchAll();
-  }, [accessToken, isDemo, fetchAll]);
+    void fetchAllRef.current();
+  }, [accessToken, isDemo]);
 
   const selectedList = useMemo(
     () => taskLists.find((list) => list.id === selectedListId) ?? null,
     [selectedListId, taskLists],
   );
 
+  const tasksLengthRef = useRef(0);
+  useEffect(() => {
+    tasksLengthRef.current = tasks.length;
+  }, [tasks.length]);
+
   const setList = useCallback(
     async (listId: string) => {
       if (!accessToken || !listId) return;
       if (!isDemo && listId.startsWith("demo-")) return;
+      if (selectedListIdRef.current === listId && tasksLengthRef.current > 0) return;
       setSelectedListId(listId);
       setLoading(true);
       setSyncStatus("syncing");
