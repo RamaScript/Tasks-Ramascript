@@ -28,6 +28,7 @@ interface BoardColumnProps {
   onDeleteList: (listId: string) => void;
   onClearCompleted: (listId: string) => void;
   accentColor?: string;
+  index?: number;
 }
 
 export function BoardColumn({

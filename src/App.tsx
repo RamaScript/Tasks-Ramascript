@@ -8,7 +8,7 @@ import {
   X,
 } from "lucide-react";
 import "./App.css";
-import { BoardView } from "./components/BoardView";
+import { MasonryView } from "./components/MasonryView";
 import { CompletedSection } from "./components/CompletedSection";
 import { InlineTaskComposer } from "./components/InlineTaskComposer";
 import { SetupGuideModal } from "./components/SetupGuideModal";
@@ -373,7 +373,7 @@ export function App() {
                 <div className="load-bars"><span /><span /><span /></div>
               </div>
             ) : (
-              <BoardView
+              <MasonryView
                 taskLists={taskLists}
                 tasksByList={tasksByList}
                 subtasksMap={subtasksMap}
