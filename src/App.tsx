@@ -704,6 +704,23 @@ function App() {
               </p>
             </div>
           </section>
+
+          <footer style={{ marginTop: "3rem", padding: "1.5rem 0", borderTop: "3px solid var(--line)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
+            <span style={{ fontSize: "0.75rem", fontWeight: 700, fontFamily: "var(--font-mono)", textTransform: "uppercase" }}>
+              TASKS RAMASCRIPT · TWO-WAY CLIENT FOR GOOGLE TASKS
+            </span>
+            <div style={{ display: "flex", gap: "1.5rem", fontSize: "0.75rem", fontWeight: 700, fontFamily: "var(--font-mono)" }}>
+              <a href="/privacy" style={{ color: "var(--ink)", textDecoration: "underline" }}>PRIVACY POLICY</a>
+              <a href="/terms" style={{ color: "var(--ink)", textDecoration: "underline" }}>TERMS OF SERVICE</a>
+              <button
+                type="button"
+                style={{ background: "none", border: "none", color: "var(--ink)", fontWeight: 700, textDecoration: "underline", cursor: "pointer", padding: 0 }}
+                onClick={() => setShowSetupModal(true)}
+              >
+                GCP GUIDE
+              </button>
+            </div>
+          </footer>
         </main>
 
         {showSetupModal ? (
@@ -953,6 +970,12 @@ function App() {
             <LogOut size={16} />
             SIGN OUT
           </button>
+
+          <div style={{ display: "flex", justifyContent: "center", gap: "0.75rem", fontSize: "0.62rem", fontWeight: 700, fontFamily: "var(--font-mono)", opacity: 0.7, paddingTop: "0.25rem" }}>
+            <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: "var(--ink)", textDecoration: "underline" }}>PRIVACY</a>
+            <span>·</span>
+            <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: "var(--ink)", textDecoration: "underline" }}>TERMS</a>
+          </div>
         </div>
       </aside>
 

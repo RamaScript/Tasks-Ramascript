@@ -110,6 +110,16 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
     selectedListIdRef.current = selectedListId;
   }, [selectedListId]);
 
+  // Reset list selection if switching between demo and cloud modes
+  const isDemoRef = useRef(isDemo);
+  useEffect(() => {
+    if (isDemoRef.current !== isDemo) {
+      isDemoRef.current = isDemo;
+      setSelectedListId("");
+      selectedListIdRef.current = "";
+    }
+  }, [isDemo]);
+
   // Demo storage helpers
   const getDemoLists = useCallback((): TaskList[] => {
     try {
@@ -167,8 +177,10 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
     if (isDemo) {
       const lists = getDemoLists();
       setTaskLists(lists);
-      const nextSelectedListId =
-        selectedListIdRef.current || lists[0]?.id || "";
+      const listExists = lists.some((l) => l.id === selectedListIdRef.current);
+      const nextSelectedListId = listExists
+        ? selectedListIdRef.current
+        : lists[0]?.id || "";
       setSelectedListId(nextSelectedListId);
 
       const tasksMap = getDemoTasksMap();
@@ -182,8 +194,13 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
       const lists = await fetchTaskLists(accessToken);
       setTaskLists(lists);
 
-      const nextSelectedListId =
-        selectedListIdRef.current || lists[0]?.id || "";
+      // Validate list exists in Google Task lists ONLY (never leak demo list IDs)
+      const listExists = lists.some(
+        (l) => l.id === selectedListIdRef.current && !l.id.startsWith("demo-"),
+      );
+      const nextSelectedListId = listExists
+        ? selectedListIdRef.current
+        : lists[0]?.id || "";
       setSelectedListId(nextSelectedListId);
 
       if (nextSelectedListId) {
@@ -217,6 +234,7 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
   const setList = useCallback(
     async (listId: string) => {
       if (!accessToken || !listId) return;
+      if (!isDemo && listId.startsWith("demo-")) return;
       setSelectedListId(listId);
       setLoading(true);
       setSyncStatus("syncing");
@@ -245,6 +263,7 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
   const addTask = useCallback(
     async (title: string, extra?: Partial<Task>) => {
       if (!accessToken || !selectedListId || !title.trim()) return;
+      if (!isDemo && selectedListId.startsWith("demo-")) return;
 
       const formattedDue = toRFC3339Date(extra?.due);
       const optimisticTask: Task = {
@@ -294,6 +313,7 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
   const updateTaskById = useCallback(
     async (taskId: string, updates: Partial<Task>) => {
       if (!accessToken || !selectedListId) return;
+      if (!isDemo && selectedListId.startsWith("demo-")) return;
 
       const currentTask = tasks.find((task) => task.id === taskId);
       if (!currentTask) return;
@@ -333,6 +353,15 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
         );
         setSyncStatus("synced");
       } catch (err) {
+        if (
+          err instanceof Error &&
+          (err.message.includes("404") || err.message.includes("notFound"))
+        ) {
+          // Task already gone on Google, remove locally and sync cleanly
+          setTasks((current) => current.filter((task) => task.id !== taskId));
+          setSyncStatus("synced");
+          return;
+        }
         setTasks((current) =>
           current.map((task) => (task.id === taskId ? currentTask : task)),
         );
@@ -353,6 +382,8 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
   const removeTask = useCallback(
     async (taskId: string) => {
       if (!accessToken || !selectedListId) return;
+      if (!isDemo && selectedListId.startsWith("demo-")) return;
+
       const currentTask = tasks.find((task) => task.id === taskId);
       if (!currentTask) return;
 
@@ -373,6 +404,14 @@ export function useTasks({ accessToken, isDemo, onAuthExpired }: UseTasksOptions
         await deleteTask(accessToken, selectedListId, taskId);
         setSyncStatus("synced");
       } catch (err) {
+        if (
+          err instanceof Error &&
+          (err.message.includes("404") || err.message.includes("notFound"))
+        ) {
+          // Task already deleted remotely, proceed as success
+          setSyncStatus("synced");
+          return;
+        }
         setTasks((current) => [currentTask, ...current]);
         handleApiError(err, "TASK_DELETE_FAILED");
       }
