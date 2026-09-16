@@ -2,6 +2,67 @@
    TASKS RAMASCRIPT - NEO-BRUTALIST GOOGLE TASKS STYLESHEET
    ========================================================================== */
 
+/* ============ BASE RESET & ACCESSIBILITY DEFAULTS ============ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* Consistent, calmer easing used across every hover/press interaction.
+   Individual rules can still override transition-duration where needed. */
+:root {
+  --ease-brutal: cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+/* Respect the user's OS-level motion preference: kill transforms,
+   transitions and keyframe animations everywhere instead of leaving
+   scattered exceptions across the file. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Uniform keyboard-focus ring for every interactive element in the app.
+   Neo-brutalist borders already give strong contrast, so the ring just
+   needs to sit outside them and stay visible on both themes. */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2.5px solid var(--accent);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="dark"] button:focus-visible,
+[data-theme="dark"] a:focus-visible,
+[data-theme="dark"] input:focus-visible,
+[data-theme="dark"] textarea:focus-visible,
+[data-theme="dark"] select:focus-visible,
+[data-theme="dark"] [tabindex]:focus-visible {
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.16);
+}
+
+/* Circular controls (checkmarks) get a rounded ring instead of a square one */
+.task-circle-check:focus-visible,
+.drawer-check-circle:focus-visible,
+.subtask-check:focus-visible,
+.task-card-check-btn:focus-visible,
+.task-card-title-row .task-card-check-btn:focus-visible {
+  outline-offset: 3px;
+  border-radius: 50%;
+}
+
 /* ============ MODERN NEO-BRUTALIST LANDING PAGE ============ */
 
 .landing-shell {
@@ -151,7 +212,9 @@
   font-size: 1rem;
   font-weight: 800;
   cursor: pointer;
-  transition: transform 0.12s, box-shadow 0.12s;
+  transition:
+    transform 0.12s,
+    box-shadow 0.12s;
   text-decoration: none;
 }
 .google-signin-btn:hover {
@@ -233,9 +296,15 @@
   border-radius: 50%;
   border: 1.5px solid var(--line);
 }
-.preview-dot.red { background: #ef4444; }
-.preview-dot.yellow { background: #f59e0b; }
-.preview-dot.green { background: #10b981; }
+.preview-dot.red {
+  background: #ef4444;
+}
+.preview-dot.yellow {
+  background: #f59e0b;
+}
+.preview-dot.green {
+  background: #10b981;
+}
 
 .preview-title {
   margin-left: 0.75rem;
@@ -263,7 +332,9 @@
   flex-direction: column;
   gap: 0.6rem;
   border-top: 5px solid var(--card-accent, var(--line));
-  transition: transform 0.12s, box-shadow 0.12s;
+  transition:
+    transform 0.12s,
+    box-shadow 0.12s;
 }
 .preview-card:hover {
   transform: translate(-2px, -2px);
@@ -355,7 +426,6 @@
   cursor: pointer;
   padding: 0;
 }
-
 
 /* ============ CORE BUTTONS ============ */
 
@@ -516,11 +586,18 @@
 }
 
 .primary-button:disabled,
-.secondary-button:disabled {
+.secondary-button:disabled,
+.ghost-button:disabled,
+.mini-button:disabled,
+.mini-button-icon:disabled,
+.icon-button:disabled,
+.chip:disabled,
+.nav-pill:disabled {
   opacity: 0.5;
   cursor: not-allowed;
   box-shadow: none;
   transform: none;
+  pointer-events: none;
 }
 
 /* ============ APP SHELL & LAYOUT ============ */
@@ -544,7 +621,9 @@
   display: flex;
   flex-direction: column;
   z-index: 20;
-  transition: width 0.2s ease, transform 0.2s ease;
+  transition:
+    width 0.2s ease,
+    transform 0.2s ease;
 }
 
 .sidebar.collapsed {
@@ -651,7 +730,9 @@
   border: 2.5px solid var(--line);
   background: var(--panel);
   box-shadow: 3px 3px 0 var(--line);
-  transition: transform 0.08s ease, box-shadow 0.08s ease;
+  transition:
+    transform 0.08s ease,
+    box-shadow 0.08s ease;
 }
 
 .list-row:hover {
@@ -1065,7 +1146,9 @@
   box-shadow: 4px 4px 0 var(--line);
   cursor: pointer;
   margin-bottom: 1.25rem;
-  transition: transform 0.08s ease, box-shadow 0.08s ease;
+  transition:
+    transform 0.08s ease,
+    box-shadow 0.08s ease;
 }
 
 .composer-collapsed:hover {
@@ -1235,7 +1318,9 @@
   padding: 0.9rem 1rem;
   box-shadow: 4px 4px 0 var(--line);
   cursor: pointer;
-  transition: transform 0.08s ease, box-shadow 0.08s ease;
+  transition:
+    transform 0.08s ease,
+    box-shadow 0.08s ease;
 }
 
 .task-item-card:hover {
@@ -1273,7 +1358,9 @@
   justify-content: center;
   padding: 0;
   cursor: pointer;
-  transition: transform 0.08s ease, background 0.1s ease;
+  transition:
+    transform 0.08s ease,
+    background 0.1s ease;
   box-shadow: 2px 2px 0 var(--line);
 }
 
@@ -2191,7 +2278,9 @@
   color: var(--muted);
   flex-shrink: 0;
   border-radius: 2px;
-  transition: background 0.1s, color 0.1s;
+  transition:
+    background 0.1s,
+    color 0.1s;
 }
 .column-menu-btn:hover {
   background: var(--bg);
@@ -2306,7 +2395,10 @@
   font-size: 0.875rem;
   font-weight: 700;
   width: 100%;
-  transition: background 0.1s, color 0.1s, border-color 0.15s;
+  transition:
+    background 0.1s,
+    color 0.1s,
+    border-color 0.15s;
 }
 .add-column-btn:hover {
   background: var(--panel);
@@ -2463,7 +2555,9 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  transition: background 0.1s, color 0.1s;
+  transition:
+    background 0.1s,
+    color 0.1s;
 }
 .view-mode-btn + .view-mode-btn {
   border-left: 2px solid var(--line);
@@ -2626,7 +2720,9 @@
   border: 2.5px solid var(--line);
   box-shadow: 3.5px 3.5px 0 var(--line);
   cursor: pointer;
-  transition: box-shadow 0.12s, transform 0.12s;
+  transition:
+    box-shadow 0.12s,
+    transform 0.12s;
   position: relative;
   overflow: hidden;
 }
@@ -2635,7 +2731,9 @@
   transform: translate(-1.5px, -1.5px);
 }
 .task-card--selected {
-  box-shadow: 5px 5px 0 var(--ink), 0 0 0 2px var(--accent);
+  box-shadow:
+    5px 5px 0 var(--ink),
+    0 0 0 2px var(--accent);
   outline: 2px solid var(--ink);
 }
 .task-card--completed {
@@ -2679,7 +2777,9 @@
   cursor: pointer;
   color: var(--muted);
   padding: 0;
-  transition: color 0.15s, transform 0.1s;
+  transition:
+    color 0.15s,
+    transform 0.1s;
 }
 .task-card-title-row .task-card-check-btn:hover {
   color: var(--ink);
@@ -2824,7 +2924,9 @@
   color: var(--muted);
   padding: 0.2rem;
   opacity: 0;
-  transition: opacity 0.1s, color 0.1s;
+  transition:
+    opacity 0.1s,
+    color 0.1s;
 }
 .task-card:hover .task-card-action-btn {
   opacity: 1;
@@ -2842,7 +2944,9 @@
   cursor: pointer;
   color: var(--muted);
   padding: 0.2rem;
-  transition: color 0.15s, transform 0.1s;
+  transition:
+    color 0.15s,
+    transform 0.1s;
 }
 .task-card-check-btn:hover {
   color: var(--ink);
@@ -2896,3 +3000,161 @@
   background: var(--bg);
 }
 
+/* ==========================================================================
+   POLISH & CONSISTENCY PASS
+   ========================================================================== */
+
+/* ── Consistent scrollbars across every scrollable region ──
+   Keeps the thin, square, bordered feel of the rest of the UI instead
+   of falling back to the browser's default rounded scrollbar. */
+.sidebar-section,
+.tasks-canvas,
+.board-column-body,
+.board-view-container,
+.masonry-scroll-area,
+.drawer-body,
+.shortcut-box,
+.setup-guide-box {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+
+.sidebar-section::-webkit-scrollbar,
+.tasks-canvas::-webkit-scrollbar,
+.board-column-body::-webkit-scrollbar,
+.board-view-container::-webkit-scrollbar,
+.masonry-scroll-area::-webkit-scrollbar,
+.drawer-body::-webkit-scrollbar,
+.shortcut-box::-webkit-scrollbar,
+.setup-guide-box::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.sidebar-section::-webkit-scrollbar-track,
+.tasks-canvas::-webkit-scrollbar-track,
+.board-column-body::-webkit-scrollbar-track,
+.board-view-container::-webkit-scrollbar-track,
+.masonry-scroll-area::-webkit-scrollbar-track,
+.drawer-body::-webkit-scrollbar-track,
+.shortcut-box::-webkit-scrollbar-track,
+.setup-guide-box::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-section::-webkit-scrollbar-thumb,
+.tasks-canvas::-webkit-scrollbar-thumb,
+.board-column-body::-webkit-scrollbar-thumb,
+.board-view-container::-webkit-scrollbar-thumb,
+.masonry-scroll-area::-webkit-scrollbar-thumb,
+.drawer-body::-webkit-scrollbar-thumb,
+.shortcut-box::-webkit-scrollbar-thumb,
+.setup-guide-box::-webkit-scrollbar-thumb {
+  background-color: var(--line);
+  border-radius: 0;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+/* ── Gentle entrance for new content ──
+   A short fade + rise so tasks don't just pop into place. Respects
+   the reduced-motion reset above automatically since it's a normal
+   animation-duration value. Apply the class from JS when an item mounts
+   (e.g. on task creation); harmless if left unused. */
+@keyframes item-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.task-item-card,
+.task-card,
+.list-row,
+.preview-card {
+  animation: item-enter 0.22s var(--ease-brutal) both;
+}
+
+/* ── Toast should ease in/out instead of hard-cutting ── */
+@keyframes toast-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.toast {
+  animation: toast-enter 0.2s var(--ease-brutal) both;
+}
+
+/* ── Backdrop should fade rather than snap in ── */
+@keyframes backdrop-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.drawer-backdrop,
+.shortcut-overlay {
+  animation: backdrop-fade 0.15s ease-out both;
+}
+
+/* ── Unify hover-lift timing on every card/row that lifts on hover ──
+   Several components above hand-roll slightly different durations
+   (0.08s / 0.1s / 0.12s / 0.15s); nudging them onto one shared curve
+   makes the whole board feel like one system rather than several. */
+.task-item-card,
+.task-card,
+.list-row,
+.preview-card,
+.composer-collapsed,
+.google-signin-btn,
+.primary-button,
+.secondary-button,
+.ghost-button,
+.mini-button,
+.mini-button-icon,
+.icon-button {
+  transition-timing-function: var(--ease-brutal);
+}
+
+/* ── Star / delete icon buttons get the same focus + press feedback
+   as the rest of the icon buttons instead of only a color change ── */
+.task-star-btn:focus-visible,
+.star-toggle-btn:focus-visible,
+.task-delete-btn:focus-visible,
+.task-card-action-btn:focus-visible,
+.task-card-check-btn:focus-visible,
+.column-menu-btn:focus-visible,
+.subtask-delete-btn:focus-visible,
+.sidebar-toggle-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ── Empty/loading state icon breathing room + calmer load bars ── */
+.loading-state,
+.empty-state {
+  transition: opacity 0.15s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .load-bars span {
+    animation: none;
+    transform: scaleY(0.8);
+  }
+  .task-item-card,
+  .task-card,
+  .list-row,
+  .preview-card,
+  .toast {
+    animation: none;
+  }
+}
