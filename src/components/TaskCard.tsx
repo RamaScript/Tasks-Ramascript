@@ -1,12 +1,21 @@
-import { CheckCircle2, Circle, Star, Calendar, GitBranch, Trash2 } from "lucide-react";
+import {
+  Calendar,
+  CheckCircle2,
+  Circle,
+  CornerDownRight,
+  FileText,
+  Star,
+  Trash2,
+} from "lucide-react";
 import type { Task } from "../types/tasks";
 
 interface TaskCardProps {
   task: Task;
   listName: string;
   listColor: string;
-  subtaskCount: number;
-  completedSubtaskCount: number;
+  subtasks?: Task[];
+  subtaskCount?: number;
+  completedSubtaskCount?: number;
   isSelected: boolean;
   onSelectTask: (task: Task) => void;
   onToggleComplete: (task: Task) => void;
@@ -48,8 +57,9 @@ export function TaskCard({
   task,
   listName,
   listColor,
-  subtaskCount,
-  completedSubtaskCount,
+  subtasks = [],
+  subtaskCount = 0,
+  completedSubtaskCount = 0,
   isSelected,
   onSelectTask,
   onToggleComplete,
@@ -60,41 +70,73 @@ export function TaskCard({
   const dueLabel = formatDue(task.due);
   const overdue = isDueOverdue(task.due) && !isCompleted;
   const hasNotes = Boolean(task.notes?.trim());
+  const actualSubtaskCount = subtaskCount || subtasks.length;
+  const actualCompletedSubs =
+    completedSubtaskCount ||
+    subtasks.filter((s) => s.status === "completed").length;
 
   return (
     <article
       className={`task-card${isSelected ? " task-card--selected" : ""}${isCompleted ? " task-card--completed" : ""}`}
       onClick={() => onSelectTask(task)}
     >
-      {/* List color bar */}
+      {/* List Color Accent Bar */}
       <div className="task-card-color-bar" style={{ background: listColor }} />
 
-      {/* Card body */}
       <div className="task-card-body">
-        {/* Top row: list tag + star */}
+        {/* Top Header Row: List tag badge + Star */}
         <div className="task-card-meta-row">
-          <span className="task-card-list-tag" style={{ borderColor: listColor, color: listColor }}>
+          <span
+            className="task-card-list-tag"
+            style={{ borderColor: listColor, color: listColor }}
+          >
             {listName}
           </span>
           <button
             type="button"
             className={`task-card-star-btn${task.starred ? " starred" : ""}`}
             aria-label={task.starred ? "Unstar task" : "Star task"}
-            onClick={(e) => { e.stopPropagation(); onToggleStar(task.id); }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleStar(task.id);
+            }}
           >
-            <Star size={13} fill={task.starred ? "currentColor" : "none"} />
+            <Star size={13} fill={task.starred ? "#f59e0b" : "none"} color={task.starred ? "#f59e0b" : "currentColor"} />
           </button>
         </div>
 
-        {/* Title */}
+        {/* Task Title — dynamic height based on text length */}
         <h3 className="task-card-title">{task.title}</h3>
 
-        {/* Notes snippet */}
+        {/* Notes preview — adds natural vertical height when present */}
         {hasNotes ? (
-          <p className="task-card-notes">{task.notes}</p>
+          <div className="task-card-notes">
+            <FileText size={11} className="task-card-notes-icon" />
+            <span>{task.notes}</span>
+          </div>
         ) : null}
 
-        {/* Bottom row: chips + actions */}
+        {/* Subtasks checklist preview — Pinterest dynamic height */}
+        {subtasks.length > 0 ? (
+          <div className="task-card-subtasks-preview">
+            {subtasks.slice(0, 3).map((sub) => (
+              <div
+                key={sub.id}
+                className={`card-subtask-item${sub.status === "completed" ? " done" : ""}`}
+              >
+                <CornerDownRight size={10} className="subtask-arrow" />
+                <span className="subtask-text">{sub.title}</span>
+              </div>
+            ))}
+            {subtasks.length > 3 ? (
+              <span className="card-subtask-more">
+                +{subtasks.length - 3} more subtask{subtasks.length - 3 !== 1 ? "s" : ""}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+
+        {/* Card Footer: Due chip + Subtasks chip + Checkmark & Delete actions */}
         <div className="task-card-footer">
           <div className="task-card-chips">
             {dueLabel ? (
@@ -103,10 +145,9 @@ export function TaskCard({
                 {dueLabel}
               </span>
             ) : null}
-            {subtaskCount > 0 ? (
+            {actualSubtaskCount > 0 ? (
               <span className="task-card-chip">
-                <GitBranch size={10} />
-                {completedSubtaskCount}/{subtaskCount}
+                {actualCompletedSubs}/{actualSubtaskCount}
               </span>
             ) : null}
           </div>
@@ -116,17 +157,30 @@ export function TaskCard({
               type="button"
               className="task-card-action-btn"
               aria-label="Delete task"
-              onClick={(e) => { e.stopPropagation(); onDeleteTask(task.id); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDeleteTask(task.id);
+              }}
+              title="Delete task"
             >
-              <Trash2 size={12} />
+              <Trash2 size={13} />
             </button>
+
             <button
               type="button"
               className={`task-card-check-btn${isCompleted ? " completed" : ""}`}
               aria-label={isCompleted ? "Mark incomplete" : "Mark complete"}
-              onClick={(e) => { e.stopPropagation(); onToggleComplete(task); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleComplete(task);
+              }}
+              title={isCompleted ? "Mark incomplete" : "Mark complete"}
             >
-              {isCompleted ? <CheckCircle2 size={16} /> : <Circle size={16} />}
+              {isCompleted ? (
+                <CheckCircle2 size={17} color="#10b981" />
+              ) : (
+                <Circle size={17} />
+              )}
             </button>
           </div>
         </div>

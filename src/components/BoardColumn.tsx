@@ -1,14 +1,15 @@
 import { useState, useRef, useEffect } from "react";
 import {
   CheckCheck,
+  ChevronDown,
+  ChevronRight,
   Edit2,
   MoreVertical,
   Trash2,
 } from "lucide-react";
 import type { Task, TaskList } from "../types/tasks";
-import { CompletedSection } from "./CompletedSection";
 import { InlineTaskComposer } from "./InlineTaskComposer";
-import { TaskItem } from "./TaskItem";
+import { TaskCard } from "./TaskCard";
 
 interface BoardColumnProps {
   list: TaskList;
@@ -47,6 +48,7 @@ export function BoardColumn({
   accentColor = "var(--accent)",
 }: BoardColumnProps) {
   const [showMenu, setShowMenu] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -65,7 +67,7 @@ export function BoardColumn({
 
   return (
     <div className="board-column">
-      {/* Column Header */}
+      {/* Column Header: Grouped by List */}
       <div className="board-column-header">
         <div className="board-column-title-wrap">
           <span
@@ -148,27 +150,35 @@ export function BoardColumn({
         </div>
       </div>
 
-      {/* Column Body */}
+      {/* Column Body: Pinterest-style variable-height cards */}
       <div className="board-column-body">
-        {/* Inline "+ Add a task" card */}
+        {/* Quick inline "+ Add a task" composer */}
         <InlineTaskComposer
           onAddTask={(title, extra) => onAddTask(title, extra, list.id)}
         />
 
-        {/* Active Tasks */}
+        {/* Active Tasks Stack — variable heights, one after another */}
         <div className="column-task-list">
           {activeTasks.length === 0 && completedTasks.length === 0 ? (
             <div className="column-empty-state">
-              <span>No tasks yet</span>
-              <p>Click &quot;Add a task&quot; to begin</p>
+              <span>No tasks in this list</span>
+              <p>Type above to add a task</p>
             </div>
           ) : null}
 
           {activeTasks.map((task) => (
-            <TaskItem
+            <TaskCard
               key={task.id}
               task={task}
+              listName={list.title}
+              listColor={accentColor}
               subtasks={subtasksMap[task.id] ?? []}
+              subtaskCount={(subtasksMap[task.id] ?? []).length}
+              completedSubtaskCount={
+                (subtasksMap[task.id] ?? []).filter(
+                  (s) => s.status === "completed",
+                ).length
+              }
               isSelected={selectedTaskId === task.id}
               onSelectTask={onSelectTask}
               onToggleComplete={onToggleComplete}
@@ -179,16 +189,45 @@ export function BoardColumn({
         </div>
 
         {/* Completed Tasks Accordion */}
-        <CompletedSection
-          completedTasks={completedTasks}
-          subtasksMap={subtasksMap}
-          selectedTaskId={selectedTaskId}
-          onSelectTask={onSelectTask}
-          onToggleComplete={onToggleComplete}
-          onToggleStar={onToggleStar}
-          onDeleteTask={onDeleteTask}
-          onClearCompleted={() => onClearCompleted(list.id)}
-        />
+        {completedTasks.length > 0 ? (
+          <div className="column-completed-section">
+            <button
+              type="button"
+              className="column-completed-toggle"
+              onClick={() => setShowCompleted((v) => !v)}
+            >
+              <span className="completed-arrow-icon">
+                {showCompleted ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              </span>
+              <span>Completed ({completedTasks.length})</span>
+            </button>
+
+            {showCompleted ? (
+              <div className="column-completed-cards">
+                {completedTasks.map((task) => (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    listName={list.title}
+                    listColor={accentColor}
+                    subtasks={subtasksMap[task.id] ?? []}
+                    subtaskCount={(subtasksMap[task.id] ?? []).length}
+                    completedSubtaskCount={
+                      (subtasksMap[task.id] ?? []).filter(
+                        (s) => s.status === "completed",
+                      ).length
+                    }
+                    isSelected={selectedTaskId === task.id}
+                    onSelectTask={onSelectTask}
+                    onToggleComplete={onToggleComplete}
+                    onToggleStar={onToggleStar}
+                    onDeleteTask={onDeleteTask}
+                  />
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </div>
   );
