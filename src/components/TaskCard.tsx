@@ -4,22 +4,21 @@ import {
   Circle,
   CornerDownRight,
   FileText,
-  Star,
   Trash2,
 } from "lucide-react";
 import type { Task } from "../types/tasks";
 
 interface TaskCardProps {
   task: Task;
-  listName: string;
-  listColor: string;
+  listName?: string;
+  listColor?: string;
   subtasks?: Task[];
   subtaskCount?: number;
   completedSubtaskCount?: number;
   isSelected: boolean;
   onSelectTask: (task: Task) => void;
   onToggleComplete: (task: Task) => void;
-  onToggleStar: (taskId: string) => void;
+  onToggleStar?: (taskId: string) => void;
   onDeleteTask: (taskId: string) => void;
 }
 
@@ -55,15 +54,13 @@ function isDueOverdue(due: string | undefined): boolean {
 
 export function TaskCard({
   task,
-  listName,
-  listColor,
+  listColor = "var(--accent)",
   subtasks = [],
   subtaskCount = 0,
   completedSubtaskCount = 0,
   isSelected,
   onSelectTask,
   onToggleComplete,
-  onToggleStar,
   onDeleteTask,
 }: TaskCardProps) {
   const isCompleted = task.status === "completed";
@@ -80,35 +77,33 @@ export function TaskCard({
       className={`task-card${isSelected ? " task-card--selected" : ""}${isCompleted ? " task-card--completed" : ""}`}
       onClick={() => onSelectTask(task)}
     >
-      {/* List Color Accent Bar */}
+      {/* Top list-colored accent bar */}
       <div className="task-card-color-bar" style={{ background: listColor }} />
 
       <div className="task-card-body">
-        {/* Top Header Row: List tag badge + Star */}
-        <div className="task-card-meta-row">
-          <span
-            className="task-card-list-tag"
-            style={{ borderColor: listColor, color: listColor }}
-          >
-            {listName}
-          </span>
+        {/* Title row: Radio checkbox just before task name (no group name, no star) */}
+        <div className="task-card-title-row">
           <button
             type="button"
-            className={`task-card-star-btn${task.starred ? " starred" : ""}`}
-            aria-label={task.starred ? "Unstar task" : "Star task"}
+            className={`task-card-check-btn${isCompleted ? " completed" : ""}`}
+            aria-label={isCompleted ? "Mark incomplete" : "Mark complete"}
             onClick={(e) => {
               e.stopPropagation();
-              onToggleStar(task.id);
+              onToggleComplete(task);
             }}
+            title={isCompleted ? "Mark incomplete" : "Mark complete"}
           >
-            <Star size={13} fill={task.starred ? "#f59e0b" : "none"} color={task.starred ? "#f59e0b" : "currentColor"} />
+            {isCompleted ? (
+              <CheckCircle2 size={17} color="#10b981" />
+            ) : (
+              <Circle size={17} />
+            )}
           </button>
+
+          <h3 className="task-card-title">{task.title}</h3>
         </div>
 
-        {/* Task Title — dynamic height based on text length */}
-        <h3 className="task-card-title">{task.title}</h3>
-
-        {/* Notes preview — adds natural vertical height when present */}
+        {/* Notes snippet — dynamic vertical height when notes exist */}
         {hasNotes ? (
           <div className="task-card-notes">
             <FileText size={11} className="task-card-notes-icon" />
@@ -136,7 +131,7 @@ export function TaskCard({
           </div>
         ) : null}
 
-        {/* Card Footer: Due chip + Subtasks chip + Checkmark & Delete actions */}
+        {/* Card Footer: Chips & Delete action */}
         <div className="task-card-footer">
           <div className="task-card-chips">
             {dueLabel ? (
@@ -164,23 +159,6 @@ export function TaskCard({
               title="Delete task"
             >
               <Trash2 size={13} />
-            </button>
-
-            <button
-              type="button"
-              className={`task-card-check-btn${isCompleted ? " completed" : ""}`}
-              aria-label={isCompleted ? "Mark incomplete" : "Mark complete"}
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleComplete(task);
-              }}
-              title={isCompleted ? "Mark incomplete" : "Mark complete"}
-            >
-              {isCompleted ? (
-                <CheckCircle2 size={17} color="#10b981" />
-              ) : (
-                <Circle size={17} />
-              )}
             </button>
           </div>
         </div>

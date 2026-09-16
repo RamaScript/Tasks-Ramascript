@@ -2661,30 +2661,16 @@
   gap: 0.45rem;
 }
 
-/* Top Meta Row: List tag badge + Star */
-.task-card-meta-row {
+/* Title row: Radio checkbox just before task name */
+.task-card-title-row {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
+  align-items: flex-start;
+  gap: 0.6rem;
 }
 
-.task-card-list-tag {
-  font-family: var(--font-mono);
-  font-size: 0.62rem;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  padding: 0.15rem 0.45rem;
-  border: 1.5px solid;
-  line-height: 1.2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 160px;
-}
-
-.task-card-star-btn {
+.task-card-title-row .task-card-check-btn {
+  margin-top: 0.08rem;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2692,16 +2678,20 @@
   border: none;
   cursor: pointer;
   color: var(--muted);
-  padding: 0.1rem;
-  flex-shrink: 0;
-  transition: transform 0.1s;
+  padding: 0;
+  transition: color 0.15s, transform 0.1s;
 }
-.task-card-star-btn:hover {
-  transform: scale(1.2);
+.task-card-title-row .task-card-check-btn:hover {
+  color: var(--ink);
+  transform: scale(1.15);
+}
+.task-card-title-row .task-card-check-btn.completed {
+  color: #10b981;
 }
 
 /* Title — wraps naturally, dynamic height */
 .task-card-title {
+  flex: 1;
   margin: 0;
   font-family: var(--font-display);
   font-size: 0.95rem;
