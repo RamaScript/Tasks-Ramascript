@@ -10,7 +10,6 @@ import {
   Search,
   ShieldCheck,
   Sparkles,
-  Star,
   Sun,
   X,
   Zap,
@@ -237,7 +236,7 @@ export function App() {
         <main className="landing-main">
           <section className="landing-hero">
             <div className="hero-badge">
-              <span className="pulse-dot" /> GOOGLE TASKS // PINTEREST MASONRY
+              <span className="pulse-dot" /> GOOGLE TASKS · MINIMAL GLASS
             </div>
             <h1 className="hero-headline">
               Organize anything.
@@ -245,7 +244,7 @@ export function App() {
               <span className="highlight-text">Visually fast.</span>
             </h1>
             <p className="hero-subline">
-              A high-contrast Pinterest board view for Google Tasks.
+              An ultra-minimal Pinterest board view for Google Tasks.
               Instant two-way sync, rapid entry, nested subtasks, and zero clutter.
             </p>
 
@@ -300,23 +299,22 @@ export function App() {
               <div className="preview-dot red" />
               <div className="preview-dot yellow" />
               <div className="preview-dot green" />
-              <span className="preview-title">tasks.google.com // LIVE BOARD PREVIEW</span>
+              <span className="preview-title">tasks.google.com · Live Preview</span>
             </div>
 
             <div className="preview-board-cards">
-              <div className="preview-card" style={{ "--card-accent": "#ffe600" } as React.CSSProperties}>
-                <div className="preview-card-tag" style={{ color: "#b45309", borderColor: "#ffe600" }}>Focus // Sprint</div>
+              <div className="preview-card" style={{ "--card-accent": "#6366f1" } as React.CSSProperties}>
+                <div className="preview-card-tag" style={{ color: "#6366f1", borderColor: "rgba(99, 102, 241, 0.2)" }}>Focus</div>
                 <h4>Design System &amp; Pinterest Flow</h4>
                 <p>Multi-column masonry grid with color-coded list bars and rapid task composer.</p>
                 <div className="preview-card-meta">
                   <span className="preview-chip"><Calendar size={11} /> Today</span>
                   <span className="preview-chip"><GitBranch size={11} /> 2/3</span>
-                  <Star size={13} fill="#f59e0b" color="#f59e0b" />
                 </div>
               </div>
 
               <div className="preview-card" style={{ "--card-accent": "#06b6d4" } as React.CSSProperties}>
-                <div className="preview-card-tag" style={{ color: "#0891b2", borderColor: "#06b6d4" }}>System Architecture</div>
+                <div className="preview-card-tag" style={{ color: "#0891b2", borderColor: "rgba(6, 182, 212, 0.2)" }}>Architecture</div>
                 <h4>Two-Way Direct Google Sync</h4>
                 <p>Private client-side connection straight to Google Tasks API with instant local cache.</p>
                 <div className="preview-card-meta">
@@ -325,7 +323,7 @@ export function App() {
               </div>
 
               <div className="preview-card" style={{ "--card-accent": "#10b981" } as React.CSSProperties}>
-                <div className="preview-card-tag" style={{ color: "#059669", borderColor: "#10b981" }}>Personal</div>
+                <div className="preview-card-tag" style={{ color: "#059669", borderColor: "rgba(16, 185, 129, 0.2)" }}>Personal</div>
                 <h4>Quarterly Goals &amp; Deep Work</h4>
                 <p>Distraction-free workspace with keyboard shortcuts (? key) and slide-over inspector.</p>
                 <div className="preview-card-meta">
