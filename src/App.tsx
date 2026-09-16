@@ -7,6 +7,7 @@ import {
   HelpCircle,
   LayoutGrid,
   Moon,
+  Plus,
   Search,
   ShieldCheck,
   Sparkles,
@@ -18,6 +19,7 @@ import "./App.css";
 import { MasonryView } from "./components/MasonryView";
 import { CompletedSection } from "./components/CompletedSection";
 import { InlineTaskComposer } from "./components/InlineTaskComposer";
+import { QuickAddModal } from "./components/QuickAddModal";
 import { SetupGuideModal } from "./components/SetupGuideModal";
 import { ShortcutsModal } from "./components/ShortcutsModal";
 import { Sidebar } from "./components/Sidebar";
@@ -45,6 +47,7 @@ export function App() {
   const [search, setSearch] = useState("");
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showSetupModal, setShowSetupModal] = useState(false);
+  const [showQuickAddModal, setShowQuickAddModal] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [darkMode, setDarkMode] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -118,6 +121,7 @@ export function App() {
       }
 
       if (event.key === "Escape") {
+        if (showQuickAddModal) { setShowQuickAddModal(false); return; }
         if (showShortcuts) { setShowShortcuts(false); return; }
         if (showSetupModal) { setShowSetupModal(false); return; }
         if (selectedTaskId) { setSelectedTaskId(null); return; }
@@ -132,6 +136,12 @@ export function App() {
       }
 
       const key = event.key.toLowerCase();
+
+      if (key === "n") {
+        event.preventDefault();
+        setShowQuickAddModal(true);
+        return;
+      }
 
       if (key === "j" || key === "k") {
         event.preventDefault();
@@ -487,6 +497,7 @@ export function App() {
               <InlineTaskComposer
                 onAddTask={(title, extra) => void addTask(title, extra)}
                 isStarredDefault={selectedListId === "starred"}
+                autoListenKey={true}
               />
 
               {loading && visibleActiveTasks.length === 0 ? (
@@ -555,8 +566,30 @@ export function App() {
             onAddSubtask={(parentId, subTitle) => void addSubtask(parentId, subTitle)}
           />
         ) : null}
+
+        {/* Global Floating Action Button for rapid task entry */}
+        <button
+          type="button"
+          className="global-fab-btn"
+          onClick={() => setShowQuickAddModal(true)}
+          title="Add a task (N)"
+          aria-label="Add a task"
+        >
+          <Plus size={20} />
+          <span>Add task</span>
+        </button>
       </main>
 
+      {showQuickAddModal ? (
+        <QuickAddModal
+          taskLists={taskLists}
+          defaultListId={selectedListId}
+          onClose={() => setShowQuickAddModal(false)}
+          onAddTask={(title, extra, targetList) =>
+            void addTask(title, extra, targetList)
+          }
+        />
+      ) : null}
       {showShortcuts ? <ShortcutsModal onClose={() => setShowShortcuts(false)} /> : null}
       {showSetupModal ? <SetupGuideModal onClose={() => setShowSetupModal(false)} /> : null}
       {taskError ? <div className="toast">{taskError}</div> : null}

@@ -13,11 +13,15 @@ interface InlineTaskComposerProps {
     extra?: { notes?: string; due?: string; starred?: boolean },
   ) => void;
   isStarredDefault?: boolean;
+  autoListenKey?: boolean;
+  placeholder?: string;
 }
 
 export function InlineTaskComposer({
   onAddTask,
   isStarredDefault = false,
+  autoListenKey = false,
+  placeholder = "Add a task",
 }: InlineTaskComposerProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [title, setTitle] = useState("");
@@ -39,6 +43,7 @@ export function InlineTaskComposer({
 
   // Expose focus trigger via window custom event or key listener
   useEffect(() => {
+    if (!autoListenKey) return;
     const handleGlobalKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement | null)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
@@ -51,7 +56,7 @@ export function InlineTaskComposer({
     };
     window.addEventListener("keydown", handleGlobalKey);
     return () => window.removeEventListener("keydown", handleGlobalKey);
-  }, []);
+  }, [autoListenKey]);
 
   const computeDueDate = (): string | undefined => {
     const now = new Date();
@@ -125,8 +130,10 @@ export function InlineTaskComposer({
         <span className="composer-plus-icon">
           <Plus size={18} />
         </span>
-        <span className="composer-placeholder-text">Add a task</span>
-        <span className="composer-shortcut-hint">Press &apos;N&apos;</span>
+        <span className="composer-placeholder-text">{placeholder}</span>
+        {autoListenKey ? (
+          <span className="composer-shortcut-hint">Press &apos;N&apos;</span>
+        ) : null}
       </div>
     );
   }

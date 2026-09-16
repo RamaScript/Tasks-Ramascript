@@ -316,6 +316,7 @@ export function MasonryView({
                       onAddTask={(title, extra) =>
                         onAddTask(title, extra, list.id)
                       }
+                      placeholder={`Add task to ${list.title}...`}
                     />
                   </div>
 

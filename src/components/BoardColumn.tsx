@@ -155,6 +155,7 @@ export function BoardColumn({
         {/* Quick inline "+ Add a task" composer */}
         <InlineTaskComposer
           onAddTask={(title, extra) => onAddTask(title, extra, list.id)}
+          placeholder={`Add task to ${list.title}...`}
         />
 
         {/* Active Tasks Stack — variable heights, one after another */}
